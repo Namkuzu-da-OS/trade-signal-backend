@@ -370,3 +370,70 @@ export function scoreGoldenSetup(indicators, dailyTrend, marketState) {
         education: "The Golden Setup aligns the Daily Trend (Macro) with an Intraday Pullback to VWAP (Micro). We wait for a Volume Trigger to confirm institutions are stepping in."
     };
 }
+// ============================================================================
+// VIX INTRADAY STRATEGIES
+// ============================================================================
+
+/**
+ * VIX/Price Divergence (Intraday)
+ * Checks for divergences between SPY price and VIX movement.
+ * @param {Object} indicators - SPY indicators
+ * @param {Array} vixHistory - VIX intraday history
+ * @returns {Object} Strategy result
+ */
+export function scoreVIXFlow(indicators, vixHistory) {
+    if (!vixHistory || vixHistory.length < 10) return { score: 0, signal: 'NEUTRAL' };
+
+    const priceHistory = indicators.priceHistory;
+    const vixCloses = vixHistory.map(d => d.close);
+
+    // Look at last 5 periods (approx 1 hour on 15m chart)
+    const priceTrend = priceHistory[priceHistory.length - 1] - priceHistory[priceHistory.length - 5];
+    const vixTrend = vixCloses[vixCloses.length - 1] - vixCloses[vixCloses.length - 5];
+
+    const criteria = [];
+    let score = 0;
+    let signal = 'NEUTRAL';
+
+    // 1. Bullish Divergence: Price Down, VIX Down (or Flat)
+    // Normal: Price Down -> VIX Up
+    // Divergence: Price Down -> VIX Down (Market is not scared of the drop)
+    if (priceTrend < 0 && vixTrend < 0) {
+        criteria.push('Bullish Divergence: Price dropping but VIX is falling (No Fear)');
+        score += 70;
+        signal = 'BUY';
+    }
+
+    // 2. Bearish Divergence: Price Up, VIX Up
+    // Normal: Price Up -> VIX Down
+    // Divergence: Price Up -> VIX Up (Hedging activity increasing despite rally)
+    if (priceTrend > 0 && vixTrend > 0) {
+        criteria.push('Bearish Divergence: Price rising but VIX is rising (Fear increasing)');
+        score += 70;
+        signal = 'SELL';
+    }
+
+    // 3. VIX Crush (Trend Confirmation)
+    // Price Up + VIX Down (Strong Bullish Trend)
+    if (priceTrend > 0 && vixTrend < -0.5) { // VIX dropping significantly
+        criteria.push('Trend Confirmation: Rally supported by falling VIX');
+        score += 50;
+        signal = 'BUY';
+    }
+
+    // 4. VIX Spike (Trend Confirmation)
+    // Price Down + VIX Up (Strong Bearish Trend)
+    if (priceTrend < 0 && vixTrend > 0.5) { // VIX rising significantly
+        criteria.push('Trend Confirmation: Sell-off supported by rising VIX');
+        score += 50;
+        signal = 'SELL';
+    }
+
+    return {
+        name: 'VIX Flow Divergence',
+        score,
+        signal,
+        criteria,
+        explanation: 'Analyzes the correlation between Price and VIX. Divergences often precede reversals.'
+    };
+}

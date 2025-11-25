@@ -18,14 +18,15 @@ import {
     scoreVolatilityBreakoutEnhanced,
     scoreVWAPMeanReversion,
     calculateGEX,
-    scoreGammaExposure
+    scoreGammaExposure,
+    scoreVIXReversion
 } from './strategies.js';
 import {
     scoreOpeningRangeBreakout,
     scoreVWAPBounce,
-    scoreGoldenSetup
+    scoreGoldenSetup,
+    scoreVIXFlow
 } from './strategies/intraday.js';
-
 import {
     fetchMultiTimeframeData,
     calculateAdvancedIndicators,
@@ -33,6 +34,7 @@ import {
     fetchDataForInterval
 } from './analysis.js';
 import { calculateTradeSetup } from './tradeManager.js';
+import { AutoTrader } from './automation.js';
 
 // Initialize Gemini API
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
@@ -81,6 +83,16 @@ const db = new sqlite3.Database('./database.sqlite', (err) => {
         FOREIGN KEY(trade_id) REFERENCES trades(id)
     )`);
 
+        db.run(`CREATE TABLE IF NOT EXISTS alerts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            symbol TEXT,
+            strategy TEXT,
+            score REAL,
+            signal TEXT,
+            ai_analysis TEXT,
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+        )`);
+
         // Initialize cash if not exists (using a special symbol 'CASH')
         db.get("SELECT * FROM portfolio WHERE symbol = 'CASH'", (err, row) => {
             if (!row) {
@@ -97,6 +109,11 @@ const db = new sqlite3.Database('./database.sqlite', (err) => {
             "ALTER TABLE trades ADD COLUMN status TEXT DEFAULT 'OPEN'"
         ];
         migrations.forEach(query => db.run(query, () => { }));
+
+        // Initialize AutoTrader with DB and AI Generator
+        // Note: We pass generateAISentiment, but automation.js is configured to NOT use it automatically now.
+        // It will be used by the manual endpoint.
+        global.autoTrader = new AutoTrader(db, generateAISentiment);
     }
 });
 
@@ -189,17 +206,35 @@ async function fetchMarketData(symbol) {
     return { historical, quote };
 }
 
-async function fetchVIX() {
+async function fetchVIX(interval = '1d') {
     try {
-        const quote = await yahooFinance.quote('^VIX');
+        const chartResult = await yahooFinance.chart('^VIX', {
+            period1: '2024-01-01', // Fetch enough history
+            period2: new Date().toISOString().split('T')[0],
+            interval: interval
+        });
+
+        const quotes = chartResult.quotes || [];
+        const historical = quotes.map(q => ({
+            date: new Date(q.date),
+            open: q.open,
+            high: q.high,
+            low: q.low,
+            close: q.close,
+            volume: q.volume
+        })).filter(q => q.close !== null);
+
+        const current = historical[historical.length - 1] || {};
+
         return {
-            value: quote.regularMarketPrice,
-            change: quote.regularMarketChange,
-            changePercent: quote.regularMarketChangePercent
+            value: current.close || 20,
+            change: (current.close - (historical[historical.length - 2]?.close || current.close)) || 0,
+            changePercent: 0, // Calculate if needed, but value is most important
+            historical
         };
     } catch (error) {
         console.error('Error fetching VIX:', error.message);
-        return { value: 20, change: 0, changePercent: 0 }; // Fallback
+        return { value: 20, change: 0, changePercent: 0, historical: [] }; // Fallback
     }
 }
 
@@ -394,6 +429,12 @@ app.get('/api/scan', async (req, res) => {
                 scoreVWAPBounce(indicators),
                 scoreGoldenSetup(indicators, dailyTrend, { gex: gexData.val })
             ];
+
+            // Add VIX Flow (Intraday) for Indices
+            if (['SPY', 'QQQ', 'IWM'].includes(symbol)) {
+                const vixData = await fetchVIX('15m'); // Fetch intraday VIX
+                signals.push(scoreVIXFlow(indicators, vixData.historical));
+            }
         } else {
             // Swing Strategies
             signals = [
@@ -405,6 +446,12 @@ app.get('/api/scan', async (req, res) => {
                 scoreVWAPMeanReversion(indicators, vix),
                 scoreGammaExposure(gexData, quote.regularMarketPrice)
             ];
+
+            // Add VIX Reversion (Swing) for Indices
+            if (['SPY', 'QQQ', 'IWM'].includes(symbol)) {
+                const vixData = await fetchVIX('1d'); // Fetch daily VIX
+                signals.push(scoreVIXReversion(vixData.historical));
+            }
         }
 
         // Sort by score (highest first)
@@ -802,24 +849,24 @@ app.post('/api/trade', express.json(), async (req, res) => {
                 });
             }
 
-            // Log Trade with Professional Fields
+            // Record Trade
             db.run(
-                "INSERT INTO trades (symbol, side, quantity, price, setup_type, stop_loss, target_price) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                [symbol, side, quantity, price, setup_type || 'MANUAL', stop_loss || null, target_price || null],
-                (err) => {
+                `INSERT INTO trades (symbol, side, quantity, price, setup_type, stop_loss, target_price, pnl, status) 
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                [symbol, side, quantity, price, setup_type, stop_loss, target_price, 0, 'OPEN'],
+                function (err) {
                     if (err) {
-                        console.error("Trade Log Error:", err);
+                        db.run("ROLLBACK");
+                        return res.status(500).json({ error: err.message });
                     }
+
+                    db.run("COMMIT");
+                    res.json({ message: 'Trade executed', id: this.lastID });
                 }
             );
-
-            db.run("COMMIT");
-            res.json({ message: `Executed ${side} ${quantity} ${symbol} @ $${price}` });
         });
     });
 });
-
-
 
 // ============================================================================
 // PROFESSIONAL ANALYSIS API
@@ -882,6 +929,143 @@ app.get('/api/analyze/multi/:symbol', async (req, res) => {
         console.error(`[MULTI] Error for ${symbol}:`, error.message);
         res.status(500).json({ error: error.message });
     }
+});
+
+// ============================================================================
+// ALERTS & AUTOMATION API
+// ============================================================================
+
+/**
+ * @swagger
+ * /api/alerts:
+ *   get:
+ *     summary: Get recent AI alerts
+ *     responses:
+ *       200:
+ *         description: List of alerts
+ */
+app.get('/api/alerts', (req, res) => {
+    db.all("SELECT * FROM alerts ORDER BY timestamp DESC LIMIT 50", [], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows);
+    });
+});
+
+/**
+ * @swagger
+ * /api/alerts/{id}/analyze:
+ *   post:
+ *     summary: Trigger AI analysis for a specific alert
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Analysis generated and saved
+ */
+app.post('/api/alerts/:id/analyze', async (req, res) => {
+    const alertId = req.params.id;
+
+    // 1. Fetch Alert
+    db.get("SELECT * FROM alerts WHERE id = ?", [alertId], async (err, alert) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (!alert) return res.status(404).json({ error: 'Alert not found' });
+
+        if (alert.ai_analysis) {
+            return res.json({ message: 'Analysis already exists', analysis: alert.ai_analysis });
+        }
+
+        // 2. Re-fetch Market Data (or use stored if we had it, but we only store score/signal)
+        // We need fresh indicators for the prompt.
+        try {
+            const { historical, quote } = await fetchMarketData(alert.symbol);
+            const indicators = calculateIndicators(historical);
+            const vix = await fetchVIX();
+
+            // Mock strategy object for the prompt
+            const strategy = {
+                name: alert.strategy,
+                score: alert.score,
+                signal: alert.signal
+            };
+
+            const marketState = {
+                price: quote.regularMarketPrice,
+                vix: vix.value,
+                gex: 0 // We skip GEX re-calc for speed here unless critical
+            };
+
+            // 3. Generate AI
+            const sentiment = await generateAISentiment(alert.symbol, indicators, strategy, marketState, null);
+            const analysis = sentiment.combined_analysis;
+
+            // 4. Update DB
+            db.run("UPDATE alerts SET ai_analysis = ? WHERE id = ?", [analysis, alertId], (err) => {
+                if (err) return res.status(500).json({ error: err.message });
+                res.json({ message: 'Analysis generated', analysis });
+            });
+
+        } catch (error) {
+            console.error('Error generating on-demand analysis:', error);
+            res.status(500).json({ error: 'Failed to generate analysis' });
+        }
+    });
+});
+
+/**
+ * @swagger
+ * /api/auto/status:
+ *   get:
+ *     summary: Get automation status
+ *     responses:
+ *       200:
+ *         description: Status of the auto trader
+ */
+app.get('/api/auto/status', (req, res) => {
+    if (!global.autoTrader) {
+        return res.json({ status: 'initializing', isRunning: false });
+    }
+    res.json({
+        status: global.autoTrader.isRunning ? 'running' : 'stopped',
+        isRunning: global.autoTrader.isRunning,
+        interval: global.autoTrader.scanInterval
+    });
+});
+
+/**
+ * @swagger
+ * /api/auto/start:
+ *   post:
+ *     summary: Start automation
+ *     responses:
+ *       200:
+ *         description: Automation started
+ */
+app.post('/api/auto/start', (req, res) => {
+    if (!global.autoTrader) return res.status(503).json({ error: 'AutoTrader not ready' });
+
+    const { interval } = req.body;
+    global.autoTrader.start(interval || 15);
+    res.json({ message: 'Automation started' });
+});
+
+/**
+ * @swagger
+ * /api/auto/stop:
+ *   post:
+ *     summary: Stop automation
+ *     responses:
+ *       200:
+ *         description: Automation stopped
+ */
+app.post('/api/auto/stop', (req, res) => {
+    if (!global.autoTrader) return res.status(503).json({ error: 'AutoTrader not ready' });
+
+    global.autoTrader.stop();
+    res.json({ message: 'Automation stopped' });
 });
 
 // ============================================================================

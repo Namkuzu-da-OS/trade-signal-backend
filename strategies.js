@@ -771,3 +771,68 @@ export function scoreGammaExposure(gex, currentPrice) {
         }
     };
 }
+// ============================================================================
+// VIX STRATEGIES
+// ============================================================================
+
+/**
+ * Connors VIX Reversals (Swing)
+ * Identifies market extremes based on VIX deviations.
+ * @param {Array} vixHistory - Array of VIX historical data
+ * @returns {Object} Strategy result
+ */
+export function scoreVIXReversion(vixHistory) {
+    if (!vixHistory || vixHistory.length < 20) return { score: 0, signal: 'NEUTRAL' };
+
+    const closes = vixHistory.map(d => d.close);
+    const currentVIX = closes[closes.length - 1];
+
+    // Calculate Indicators
+    const sma10 = calculateSMA(closes, 10);
+    const currentSMA10 = sma10[sma10.length - 1];
+    const rsi5 = calculateRSI(closes, 5);
+    const currentRSI = rsi5[rsi5.length - 1];
+
+    const criteria = [];
+    let score = 0;
+    let signal = 'NEUTRAL';
+
+    // 1. Deviation from SMA (Mean Reversion)
+    const deviation = (currentVIX - currentSMA10) / currentSMA10;
+
+    if (deviation > 0.10) {
+        criteria.push(`VIX is 10%+ above 10-SMA (${(deviation * 100).toFixed(1)}%) - Market Fear High`);
+        score += 40;
+    } else if (deviation < -0.10) {
+        criteria.push(`VIX is 10%+ below 10-SMA (${(deviation * 100).toFixed(1)}%) - Market Complacency`);
+        score += 40; // High score for Short signal too
+    }
+
+    // 2. RSI Extremes
+    if (currentRSI > 70) {
+        criteria.push(`VIX RSI(5) is Overbought (${currentRSI.toFixed(1)}) - Expect Market Bounce`);
+        score += 30;
+    } else if (currentRSI < 30) {
+        criteria.push(`VIX RSI(5) is Oversold (${currentRSI.toFixed(1)}) - Expect Market Drop`);
+        score += 30;
+    }
+
+    // Determine Signal
+    // Note: High VIX = Buy Stocks (Fear is high)
+    //       Low VIX = Sell Stocks (Complacency is high)
+    if (score >= 60) {
+        if (deviation > 0 || currentRSI > 70) {
+            signal = 'BUY'; // Buy the market (SPY)
+        } else if (deviation < 0 || currentRSI < 30) {
+            signal = 'SELL'; // Sell the market (SPY)
+        }
+    }
+
+    return {
+        name: 'VIX Reversion (Connors)',
+        score,
+        signal,
+        criteria,
+        explanation: 'Contrarian strategy: Buys when VIX is extended high (Fear), Sells when VIX is extended low (Greed).'
+    };
+}

@@ -47,6 +47,12 @@ The backend (`server.js` & `strategies/`) evaluates real-time market data agains
     *   **Smart Fibs:** Dynamically displays the **nearest** 52-week Fibonacci retracement level to the current price.
     *   **Volume Profile:** Calculates Point of Control (POC) to identify high-interest price levels.
 *   **Confluence Scoring:** Every strategy is assigned a "Confidence Score" (0-100%) based on how many confirming factors are present (e.g., Volume > Average, RSI not overbought, Trend Alignment).
+50: 
+51: ### 4. Automation & AI 🤖
+52: *   **Autonomous Scanning:** The `AutoTrader` engine runs in the background, scanning your watchlist every 15 minutes for high-probability setups.
+53: *   **Live Alerts:** Signals scoring > 80% are automatically logged to the **Live Alerts** page.
+54: *   **On-Demand AI Analysis:** Integrated with **Google Gemini**, allowing you to generate context-aware "Why this trade?" explanations for any alert with a single click.
+55: *   **Paper Trading:** High-confidence signals automatically trigger paper trades to track performance without risk.
 
 ## 🛠 Tech Stack
 *   **Backend:** Node.js, Express
@@ -83,3 +89,6 @@ The backend (`server.js` & `strategies/`) evaluates real-time market data agains
 *   `GET /api/scan?symbol=SPY&interval=15m`: Runs the strategy engine on a specific symbol and timeframe.
 *   `GET /api/analyze/multi/:symbol`: Fetches multi-timeframe trend data.
 *   `GET /api/watchlist`: Retrieves the user's watchlist.
+*   `GET /api/alerts`: Fetches the latest live alerts.
+*   `POST /api/alerts/:id/analyze`: Triggers AI analysis for a specific alert.
+*   `POST /api/auto/start`: Starts the automation engine.
