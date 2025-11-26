@@ -8,7 +8,8 @@ import {
     SMA,
     EMA,
     Stochastic,
-    ADX
+    ADX,
+    ATR
 } from 'technicalindicators';
 import { getCached, setCached } from './utils/cache.js';
 import { retryAsync } from './utils/retry.js';
@@ -556,5 +557,35 @@ export function calculateIntradayProfile(historical) {
         val: sortedBuckets[downIndex].price,
         poc,
         totalVolume
+    };
+}
+/**
+ * Calculate Keltner Channels (EMA +/- 2*ATR)
+ * Used for Volatility Squeeze
+ */
+export function calculateKeltnerChannels(historical) {
+    if (!historical || historical.length < 50) return null;
+
+    const closes = historical.map(c => c.close);
+    const highs = historical.map(c => c.high);
+    const lows = historical.map(c => c.low);
+
+    // 1. Calculate EMA 20 (Middle Line)
+    const ema20 = EMA.calculate({ period: 20, values: closes });
+
+    // 2. Calculate ATR 10
+    const atr10 = ATR.calculate({ period: 10, high: highs, low: lows, close: closes });
+
+    // Align arrays (ATR starts later than EMA)
+    // We only need the most recent values for the squeeze check
+    const lastEMA = ema20[ema20.length - 1];
+    const lastATR = atr10[atr10.length - 1];
+
+    if (!lastEMA || !lastATR) return null;
+
+    return {
+        middle: lastEMA,
+        upper: lastEMA + (2 * lastATR),
+        lower: lastEMA - (2 * lastATR)
     };
 }

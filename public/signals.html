@@ -6,6 +6,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Live Trading Signals | Multi-Timeframe Scanner</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@400;500;600;700&display=swap"
+        rel="stylesheet">
     <style>
         @keyframes pulse-dot {
 
@@ -109,8 +114,13 @@
         }
 
         .font-mono-nums {
+            font-family: 'JetBrains Mono', monospace;
             font-feature-settings: "tnum";
             font-variant-numeric: tabular-nums;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
         }
     </style>
 </head>
@@ -125,16 +135,40 @@
                     class="px-6 py-4 text-sm font-semibold text-gray-400 hover:text-white hover:bg-gray-800 transition">📊
                     Main Dashboard</a>
                 <a href="/signals.html"
-                    class="px-6 py-4 text-sm font-semibold bg-gray-800 border-b-2 border-blue-500 text-white">🎯 Live
+                    class="px-6 py-4 text-sm font-semibold bg-gray-800 border-b-2 border-emerald-500 text-white">🎯 Live
                     Signals</a>
             </div>
         </div>
     </nav>
 
-    <!-- Market Ticker -->
-    <div class="bg-gray-900 border-b border-gray-800 py-2">
-        <div class="container mx-auto px-4 flex justify-between items-center text-sm overflow-x-auto" id="marketTicker">
-            <span class="text-gray-500 animate-pulse">Loading market data...</span>
+    <!-- Header Bar -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+        <div class="flex items-center justify-between h-16">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 bg-indigo-600 rounded flex items-center justify-center font-bold text-white">TS
+                </div>
+                <span class="font-bold text-xl tracking-tight text-white">TradeSignal<span
+                        class="text-indigo-400">AI</span></span>
+            </div>
+            <!-- Navigation -->
+            <div class="hidden md:flex items-center gap-6 ml-8">
+                <a href="/" class="text-white font-medium hover:text-indigo-400 transition-colors">Dashboard</a>
+            </div>
+            <div class="flex items-center gap-6 text-sm">
+                <div class="hidden md:flex items-center gap-2">
+                    <span class="text-slate-400">Market Regime:</span>
+                    <span id="marketRegime"
+                        class="px-2 py-1 rounded bg-slate-500/10 text-slate-400 font-medium border border-slate-500/20">Loading...</span>
+                </div>
+                <div class="hidden md:flex items-center gap-2">
+                    <span class="text-slate-400">VIX:</span>
+                    <span id="vixValue" class="font-mono text-slate-400">--</span>
+                </div>
+                <div class="hidden md:flex items-center gap-2">
+                    <span class="text-slate-400">GEX:</span>
+                    <span id="gexValue" class="font-mono text-slate-400">--</span>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -736,7 +770,7 @@
 
         async function showDetails(symbol) {
             try {
-                const response = await fetch(`/api/signals/live/${symbol}`);
+                const response = await fetch(`/api/scan/signals/live/${symbol}`);
                 const signal = await response.json();
 
                 document.getElementById('modalSymbol').textContent = `${symbol} - Detailed Breakdown`;
@@ -745,7 +779,23 @@
                         <div class="text-3xl font-bold text-center mb-2 text-white">${signal.final_signal}</div>
                         <div class="text-5xl font-bold text-center text-blue-400">${signal.final_score}%</div>
                         <p class="text-center text-gray-400 mt-2">Aggregated Confidence Score</p>
+                        ${signal.session_phase ? `<div class="mt-2 text-center text-xs font-mono text-indigo-300 bg-indigo-900/30 py-1 rounded inline-block px-3">SESSION: ${signal.session_phase}</div>` : ''}
                     </div>
+                    ${signal.vwap ? `
+                    <div class="grid grid-cols-3 gap-2 mb-4 text-xs font-mono text-center">
+                        <div class="bg-gray-800 p-2 rounded border border-gray-700">
+                            <span class="text-gray-500 block">VAH</span>
+                            <span class="text-gray-300">${signal.vah ? '$' + signal.vah.toFixed(2) : '-'}</span>
+                        </div>
+                        <div class="bg-gray-800 p-2 rounded border border-gray-700">
+                            <span class="text-gray-500 block">VWAP</span>
+                            <span class="text-indigo-400">${signal.vwap ? '$' + signal.vwap.toFixed(2) : '-'}</span>
+                        </div>
+                        <div class="bg-gray-800 p-2 rounded border border-gray-700">
+                            <span class="text-gray-500 block">VAL</span>
+                            <span class="text-gray-300">${signal.val ? '$' + signal.val.toFixed(2) : '-'}</span>
+                        </div>
+                    </div>` : ''}
                     <div class="grid grid-cols-3 gap-4">
                         <div class="bg-blue-900/20 border border-blue-900/30 p-4 rounded-lg text-center">
                             <p class="text-sm text-gray-400 mb-1">Entry Price</p>
@@ -1094,6 +1144,54 @@
                 alert('Failed to stop scanner');
             }
         }
+
+        async function fetchMarketHeader() {
+            try {
+                // Fetch SPY data to get general market state
+                const response = await fetch('/api/scan?symbol=SPY&interval=1d');
+                const data = await response.json();
+
+                if (data.marketState) {
+                    const state = data.marketState;
+
+                    // Update VIX
+                    const vixEl = document.getElementById('vixValue');
+                    if (state.vix !== undefined) {
+                        const vixColor = state.vix > 25 ? 'text-rose-400' : state.vix > 20 ? 'text-amber-400' : 'text-emerald-400';
+                        vixEl.className = `font-mono ${vixColor}`;
+                        vixEl.textContent = state.vix.toFixed(2);
+                    }
+
+                    // Update Market Regime
+                    const regimeEl = document.getElementById('marketRegime');
+                    const colorMap = {
+                        emerald: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
+                        amber: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
+                        rose: 'bg-rose-500/10 text-rose-400 border-rose-500/20'
+                    };
+                    regimeEl.className = `px-2 py-1 rounded font-medium border ${colorMap[state.regimeColor] || colorMap.amber}`;
+                    regimeEl.textContent = state.marketRegime || 'Unknown';
+
+                    // Update GEX
+                    const gexEl = document.getElementById('gexValue');
+                    if (state.gex !== undefined) {
+                        const gexVal = state.gex;
+                        const gexColor = gexVal > 1 ? 'text-emerald-400' : gexVal < -1 ? 'text-rose-400' : 'text-slate-400';
+                        gexEl.className = `font-mono ${gexColor}`;
+                        gexEl.textContent = '$' + gexVal.toFixed(2) + 'B';
+                    }
+                }
+            } catch (error) {
+                console.error('Error fetching market header:', error);
+            }
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            fetchMarketHeader();
+            // Refresh market header every 5 minutes
+            setInterval(fetchMarketHeader, 300000);
+        });
     </script>
 </body>
 

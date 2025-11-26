@@ -147,6 +147,30 @@ export function scoreVWAPReversion(indicators) {
     });
     if ((above2SD && isOverbought) || (below2SD && isOversold)) score += 30;
 
+    // 3. Session Phase (New)
+    const phase = sessionService.getSessionPhase();
+    let sessionScore = 0;
+    let sessionDesc = 'Neutral Session';
+
+    if (phase === 'OPENING_DRIVE') {
+        sessionScore = -30;
+        sessionDesc = 'High Volatility (Avoid Fading)';
+    } else if (phase === 'LUNCH_CHOP') {
+        sessionScore = 20;
+        sessionDesc = 'Range Bound (Good for Reversion)';
+    } else if (phase === 'AFTERNOON_SESSION') {
+        sessionScore = 10;
+        sessionDesc = 'Stable Volatility';
+    }
+
+    criteria.push({
+        name: 'Session Analysis',
+        value: phase,
+        met: sessionScore > 0,
+        description: sessionDesc
+    });
+    score += sessionScore;
+
     // Signal Logic
     if (above2SD && isOverbought) signal = 'SHORT FADE';
     if (below2SD && isOversold) signal = 'LONG FADE';
@@ -224,6 +248,30 @@ export function scoreValueAreaPlay(indicators) {
         criteria.push({ name: 'Volume Spike', value: rvol.toFixed(1) + 'x', met: true, description: 'High volume confirms move' });
         score += 20;
     }
+
+    // 3. Session Phase (New)
+    const phase = sessionService.getSessionPhase();
+    let sessionScore = 0;
+    let sessionDesc = 'Neutral Session';
+
+    if (phase === 'LUNCH_CHOP') {
+        sessionScore = -30;
+        sessionDesc = 'Low Volume (Risk of Fakeout)';
+    } else if (phase === 'MORNING_TREND') {
+        sessionScore = 20;
+        sessionDesc = 'High Volume (Trend Establishment)';
+    } else if (phase === 'POWER_HOUR') {
+        sessionScore = 20;
+        sessionDesc = 'Institutional Closing Volume';
+    }
+
+    criteria.push({
+        name: 'Session Analysis',
+        value: phase,
+        met: sessionScore > 0,
+        description: sessionDesc
+    });
+    score += sessionScore;
 
     let setup = null;
     if (signal === 'BUY BREAKOUT') {
@@ -395,4 +443,192 @@ export function scoreMeanReversion(indicators) {
 export function scoreVWAPBounce(indicators) {
     // Keeping simplified version for legacy support or removal
     return { id: 'vwap-bounce', score: 0, signal: 'NEUTRAL', criteria: [] };
+}
+
+/**
+ * Institutional Order Block Strategy
+ * Logic: Identify impulsive moves and trade the re-test of the origin candle.
+ */
+export function scoreOrderBlock(indicators) {
+    const { priceHistory, highHistory, lowHistory, dates } = indicators;
+    const currentPrice = priceHistory[priceHistory.length - 1];
+
+    if (priceHistory.length < 20) return { id: 'order-block', score: 0, signal: 'NEUTRAL', criteria: [] };
+
+    // Helper to get candle body size
+    const getBody = (i) => Math.abs(priceHistory[i] - (priceHistory[i - 1] || priceHistory[i])); // Close - Open (approx)
+    // Note: priceHistory is just closes. We need Opens.
+    // indicators object doesn't have openHistory by default in calculateIndicators.
+    // We might need to approximate or update analysis.js.
+    // Actually, let's use the 'dates' to map back if needed, but 'indicators' usually has OHLC arrays if we added them.
+    // Looking at analysis.js, it returns priceHistory (closes), highHistory, lowHistory. NO OPEN HISTORY.
+    // We can approximate Open as Previous Close.
+
+    const getOpen = (i) => i > 0 ? priceHistory[i - 1] : priceHistory[i];
+    const getClose = (i) => priceHistory[i];
+
+    let orderBlock = null;
+    let obType = 'NEUTRAL'; // BULLISH or BEARISH
+
+    // Look back for impulsive moves (last 10 candles)
+    for (let i = priceHistory.length - 2; i > priceHistory.length - 12; i--) {
+        const open = getOpen(i);
+        const close = getClose(i);
+        const body = Math.abs(close - open);
+        const range = highHistory[i] - lowHistory[i];
+
+        // Avg range of previous 5 candles
+        let avgRange = 0;
+        for (let j = 1; j <= 5; j++) avgRange += (highHistory[i - j] - lowHistory[i - j]);
+        avgRange /= 5;
+
+        // Impulsive Move Detection: Body is large relative to recent range
+        if (body > avgRange * 1.5) {
+            // Found impulsive move at 'i'.
+            // Order block is 'i-1'.
+            const obIndex = i - 1;
+            const obOpen = getOpen(obIndex);
+            const obClose = getClose(obIndex);
+            const obHigh = highHistory[obIndex];
+            const obLow = lowHistory[obIndex];
+
+            // Bullish Imbalance (Green Candle)
+            if (close > open) {
+                // OB is the last down candle (Red) before the move
+                if (obClose < obOpen) {
+                    orderBlock = { high: obHigh, low: obLow, type: 'BULLISH', index: obIndex };
+                    break; // Found recent OB
+                }
+            }
+            // Bearish Imbalance (Red Candle)
+            else if (close < open) {
+                // OB is the last up candle (Green) before the move
+                if (obClose > obOpen) {
+                    orderBlock = { high: obHigh, low: obLow, type: 'BEARISH', index: obIndex };
+                    break;
+                }
+            }
+        }
+    }
+
+    if (!orderBlock) return { id: 'order-block', score: 0, signal: 'NEUTRAL', criteria: [] };
+
+    const criteria = [];
+    let score = 0;
+    let signal = 'NEUTRAL';
+
+    // Check if current price is re-testing the OB
+    const inZone = currentPrice >= orderBlock.low && currentPrice <= orderBlock.high;
+    const nearZone = (currentPrice >= orderBlock.low * 0.998 && currentPrice <= orderBlock.high * 1.002);
+
+    criteria.push({
+        name: 'Order Block Detected',
+        value: orderBlock.type,
+        met: true,
+        description: `${orderBlock.type} OB at ${orderBlock.low.toFixed(2)} - ${orderBlock.high.toFixed(2)}`
+    });
+    score += 20;
+
+    if (nearZone) {
+        criteria.push({
+            name: 'Zone Re-Test',
+            value: 'YES',
+            met: true,
+            description: 'Price is testing the Order Block'
+        });
+        score += 40;
+
+        // Signal Logic
+        if (orderBlock.type === 'BULLISH') signal = 'BUY OB';
+        if (orderBlock.type === 'BEARISH') signal = 'SELL OB';
+    }
+
+    // Session Logic
+    const phase = sessionService.getSessionPhase();
+    if (phase === 'LUNCH_CHOP') score -= 20; // OBs often fail in chop
+    else score += 10;
+
+    let setup = null;
+    if (signal === 'BUY OB') {
+        setup = { entryZone: orderBlock.high, stopLoss: orderBlock.low, target: orderBlock.high + (orderBlock.high - orderBlock.low) * 3 };
+    } else if (signal === 'SELL OB') {
+        setup = { entryZone: orderBlock.low, stopLoss: orderBlock.high, target: orderBlock.low - (orderBlock.high - orderBlock.low) * 3 };
+    }
+
+    return {
+        id: 'order-block',
+        name: 'Institutional Order Block',
+        type: 'Smart Money',
+        description: 'Trading re-tests of institutional order entry zones.',
+        score: Math.max(0, Math.min(score, 100)),
+        signal,
+        color: score >= 60 ? 'indigo' : 'slate',
+        criteria,
+        setup
+    };
+}
+
+/**
+ * Volatility Squeeze Strategy (TTM Squeeze Logic)
+ * Logic: Bollinger Bands inside Keltner Channels -> Explosion
+ */
+export function scoreVolatilitySqueeze(indicators) {
+    const { bb, keltnerChannels, rsi } = indicators;
+
+    if (!bb || !keltnerChannels) return { id: 'volatility-squeeze', score: 0, signal: 'NEUTRAL', criteria: [] };
+
+    const criteria = [];
+    let score = 0;
+    let signal = 'NEUTRAL';
+
+    // 1. Squeeze Detection
+    // Squeeze is ON if BB Upper < KC Upper AND BB Lower > KC Lower
+    const squeezeOn = bb.upper < keltnerChannels.upper && bb.lower > keltnerChannels.lower;
+    const squeezeFired = !squeezeOn; // Simplified: If not on, it might have just fired.
+
+    // Better logic: Check if it WAS on recently?
+    // For now, let's look for "Squeeze Firing" (BB expanding outside KC)
+    const bbWidth = bb.upper - bb.lower;
+    const kcWidth = keltnerChannels.upper - keltnerChannels.lower;
+
+    if (squeezeOn) {
+        criteria.push({ name: 'Squeeze Status', value: 'ON', met: true, description: 'Volatility Compression (Prepare for move)' });
+        score += 30;
+        signal = 'WATCH SQUEEZE';
+    } else {
+        // Check for Firing (Expansion)
+        // If RSI is extreme, it might be the move
+        criteria.push({ name: 'Squeeze Status', value: 'OFF', met: false, description: 'Normal Volatility' });
+    }
+
+    // 2. Momentum (RSI)
+    if (rsi > 50) {
+        criteria.push({ name: 'Momentum', value: 'BULLISH', met: true, description: 'RSI > 50' });
+        if (squeezeOn) score += 10; // Bullish bias building
+    } else {
+        criteria.push({ name: 'Momentum', value: 'BEARISH', met: true, description: 'RSI < 50' });
+        if (squeezeOn) score += 10; // Bearish bias building
+    }
+
+    // 3. Session Phase
+    const phase = sessionService.getSessionPhase();
+    if (phase === 'POWER_HOUR' && squeezeOn) {
+        score += 30; // Power Hour Squeezes are explosive
+        criteria.push({ name: 'Power Hour', value: 'YES', met: true, description: 'Late day expansion likely' });
+    }
+
+    // Signal Logic
+    if (score >= 60 && squeezeOn) signal = 'SQUEEZE SETUP';
+
+    return {
+        id: 'volatility-squeeze',
+        name: 'Volatility Squeeze',
+        type: 'Momentum',
+        description: 'Trading explosive moves following low volatility compression.',
+        score: Math.max(0, Math.min(score, 100)),
+        signal,
+        color: score >= 60 ? 'orange' : 'slate',
+        criteria,
+        setup: null // Breakout strategy, dynamic entry
+    };
 }
