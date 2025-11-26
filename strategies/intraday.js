@@ -7,12 +7,12 @@ import { sessionService } from '../services/session.js';
  * Logic: Detect breakout above/below first 30min of trading
  */
 export function scoreOpeningRangeBreakout(indicators, marketState) {
-    const { priceHistory, rvol, highHistory, lowHistory, dates } = indicators;
+    const { priceHistory, rvol, highHistory, lowHistory, timestamps } = indicators;
 
     // 1. Get Opening Range from Session Service
     // We need to construct candle objects for the service
-    const candles = dates.map((d, i) => ({
-        date: d,
+    const candles = timestamps.map((t, i) => ({
+        date: t,
         high: highHistory[i],
         low: lowHistory[i],
         close: priceHistory[i]

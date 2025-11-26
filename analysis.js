@@ -378,7 +378,8 @@ export function calculateIndicators(historical) {
         bbUpperHistory: padArray(bb.map(b => b.upper), closes.length).slice(-50),
         bbLowerHistory: padArray(bb.map(b => b.lower), closes.length).slice(-50),
         vwapHistory: vwap.slice(-50),
-        dates: historical.slice(-50).map(d => d.date.toISOString().split('T')[0])
+        dates: historical.slice(-50).map(d => d.date.toISOString().split('T')[0]),
+        timestamps: historical.slice(-50).map(d => d.date.toISOString())
     };
 }
 

@@ -1,0 +1,21 @@
+{
+  "general": {
+    "darkMode": false,
+    "compactView": true
+  },
+  "api": {
+    "geminiKey": "test-key",
+    "marketDataKey": "test-market-key"
+  },
+  "scanner": {
+    "defaultInterval": 5,
+    "defaultAssetClass": "EQUITY",
+    "excludedSymbols": []
+  },
+  "risk": {
+    "maxRiskPerTrade": 32,
+    "maxDailyLoss": 1000,
+    "stopLossType": "FIXED",
+    "rewardRiskRatio": 3
+  }
+}

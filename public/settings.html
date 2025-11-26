@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings | TradeSignal AI</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@400;500;600;700&display=swap"
+        rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+
+        .font-mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #0f172a;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #475569;
+        }
+
+        .toggle-checkbox:checked {
+            right: 0;
+            border-color: #68D391;
+        }
+
+        .toggle-checkbox:checked+.toggle-label {
+            background-color: #68D391;
+        }
+    </style>
+</head>
+
+<body class="bg-gray-950 text-gray-100 font-sans min-h-screen flex flex-col">
+
+    <!-- Navigation Tabs -->
+    <nav class="bg-gray-900 border-b border-gray-800 sticky top-0 z-50 shadow-sm">
+        <div class="container mx-auto px-4">
+            <div class="flex gap-1">
+                <a href="/index.html"
+                    class="px-6 py-4 text-sm font-semibold text-gray-400 hover:text-white hover:bg-gray-800 transition">📊
+                    Main Dashboard</a>
+                <a href="/signals.html"
+                    class="px-6 py-4 text-sm font-semibold text-gray-400 hover:text-white hover:bg-gray-800 transition">🎯
+                    Live
+                    Signals</a>
+                <a href="/settings.html"
+                    class="px-6 py-4 text-sm font-semibold bg-gray-800 border-b-2 border-indigo-500 text-white">⚙️
+                    Settings</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Header Bar -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div
+                    class="w-10 h-10 bg-indigo-600 rounded-lg flex items-center justify-center font-bold text-white text-xl">
+                    TS
+                </div>
+                <div>
+                    <h1 class="font-bold text-2xl tracking-tight text-white">Settings & Configuration</h1>
+                    <p class="text-slate-400 text-sm">Manage your preferences, API keys, and risk parameters</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <main class="flex-grow container mx-auto px-4 max-w-7xl pb-12">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+
+            <!-- Sidebar Navigation -->
+            <aside class="lg:col-span-3">
+                <nav class="space-y-1">
+                    <a href="#general"
+                        class="flex items-center gap-3 px-4 py-3 bg-gray-800 text-white rounded-lg font-medium border-l-4 border-indigo-500 shadow-lg">
+                        <span>🔧</span> General
+                    </a>
+                    <a href="#api"
+                        class="flex items-center gap-3 px-4 py-3 text-gray-400 hover:bg-gray-800 hover:text-white rounded-lg font-medium transition">
+                        <span>🔑</span> API Keys
+                    </a>
+                    <a href="#scanner"
+                        class="flex items-center gap-3 px-4 py-3 text-gray-400 hover:bg-gray-800 hover:text-white rounded-lg font-medium transition">
+                        <span>📡</span> Scanner
+                    </a>
+                    <a href="#risk"
+                        class="flex items-center gap-3 px-4 py-3 text-gray-400 hover:bg-gray-800 hover:text-white rounded-lg font-medium transition">
+                        <span>🛡️</span> Risk Management
+                    </a>
+                </nav>
+            </aside>
+
+            <!-- Main Content Area -->
+            <div class="lg:col-span-9 space-y-8">
+
+                <!-- General Settings -->
+                <section id="general" class="bg-gray-900 rounded-xl border border-gray-800 p-6 shadow-lg">
+                    <h2 class="text-xl font-bold text-white mb-6 flex items-center gap-2">
+                        <span class="text-indigo-400">🔧</span> General Preferences
+                    </h2>
+
+                    <div class="space-y-6">
+                        <div
+                            class="flex items-center justify-between p-4 bg-gray-800/50 rounded-lg border border-gray-700/50">
+                            <div>
+                                <h3 class="font-medium text-white">Dark Mode</h3>
+                                <p class="text-sm text-gray-400">Use dark theme for the dashboard</p>
+                            </div>
+                            <div
+                                class="relative inline-block w-12 mr-2 align-middle select-none transition duration-200 ease-in">
+                                <input type="checkbox" name="toggle" id="darkModeToggle"
+                                    class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer"
+                                    checked />
+                                <label for="darkModeToggle"
+                                    class="toggle-label block overflow-hidden h-6 rounded-full bg-indigo-500 cursor-pointer"></label>
+                            </div>
+                        </div>
+
+                        <div
+                            class="flex items-center justify-between p-4 bg-gray-800/50 rounded-lg border border-gray-700/50">
+                            <div>
+                                <h3 class="font-medium text-white">Compact View</h3>
+                                <p class="text-sm text-gray-400">Reduce padding and font size for higher information
+                                    density</p>
+                            </div>
+                            <div
+                                class="relative inline-block w-12 mr-2 align-middle select-none transition duration-200 ease-in">
+                                <input type="checkbox" name="toggle" id="compactViewToggle"
+                                    class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer" />
+                                <label for="compactViewToggle"
+                                    class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-700 cursor-pointer"></label>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- API Keys -->
+                <section id="api" class="bg-gray-900 rounded-xl border border-gray-800 p-6 shadow-lg">
+                    <h2 class="text-xl font-bold text-white mb-6 flex items-center gap-2">
+                        <span class="text-indigo-400">🔑</span> API Configuration
+                    </h2>
+                    <p
+                        class="text-sm text-gray-400 mb-6 bg-blue-900/20 border border-blue-900/50 p-3 rounded text-blue-200">
+                        <strong>Note:</strong> API keys are stored locally in your browser or can be configured in the
+                        backend `.env` file for security.
+                    </p>
+
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-400 mb-1">Gemini AI API Key</label>
+                            <div class="flex gap-2">
+                                <input type="password" id="geminiKey" value="" placeholder="Enter API Key"
+                                    class="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-indigo-500 outline-none font-mono">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-400 mb-1">Market Data Provider
+                                Key</label>
+                            <div class="flex gap-2">
+                                <input type="password" id="marketDataKey" value="" placeholder="Enter API Key"
+                                    class="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-indigo-500 outline-none font-mono">
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Scanner Settings -->
+                <section id="scanner" class="bg-gray-900 rounded-xl border border-gray-800 p-6 shadow-lg">
+                    <h2 class="text-xl font-bold text-white mb-6 flex items-center gap-2">
+                        <span class="text-indigo-400">📡</span> Scanner Configuration
+                    </h2>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-400 mb-1">Default Scan Interval</label>
+                            <select id="defaultInterval"
+                                class="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-indigo-500 outline-none">
+                                <option value="1">1 Minute</option>
+                                <option value="5">5 Minutes</option>
+                                <option value="15">15 Minutes</option>
+                                <option value="30">30 Minutes</option>
+                                <option value="60">1 Hour</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-400 mb-1">Default Asset Class</label>
+                            <select id="defaultAssetClass"
+                                class="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-indigo-500 outline-none">
+                                <option value="EQUITY">US Equities</option>
+                                <option value="CRYPTO">Crypto</option>
+                                <option value="FOREX">Forex</option>
+                            </select>
+                        </div>
+                        <div class="col-span-1 md:col-span-2">
+                            <label class="block text-sm font-medium text-gray-400 mb-1">Excluded Symbols (Comma
+                                separated)</label>
+                            <input type="text" id="excludedSymbols" placeholder="e.g. XYZ, ABC"
+                                class="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-indigo-500 outline-none uppercase">
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Risk Management -->
+                <section id="risk" class="bg-gray-900 rounded-xl border border-gray-800 p-6 shadow-lg">
+                    <h2 class="text-xl font-bold text-white mb-6 flex items-center gap-2">
+                        <span class="text-indigo-400">🛡️</span> Risk Management
+                    </h2>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-400 mb-1">Max Risk Per Trade (%)</label>
+                            <div class="relative">
+                                <input type="number" id="maxRiskPerTrade" value="1.0" step="0.1"
+                                    class="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-indigo-500 outline-none">
+                                <span class="absolute right-4 top-2 text-gray-500">%</span>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-400 mb-1">Max Daily Loss Limit ($)</label>
+                            <div class="relative">
+                                <span class="absolute left-4 top-2 text-gray-500">$</span>
+                                <input type="number" id="maxDailyLoss" value="500"
+                                    class="w-full bg-gray-800 border border-gray-700 rounded-lg pl-8 pr-4 py-2 text-white focus:ring-2 focus:ring-indigo-500 outline-none">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-400 mb-1">Default Stop Loss Type</label>
+                            <select id="stopLossType"
+                                class="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-indigo-500 outline-none">
+                                <option value="ATR">ATR Based (Volatility)</option>
+                                <option value="FIXED">Fixed Percentage</option>
+                                <option value="TECHNICAL">Technical Level (Pivot/Supp)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-400 mb-1">Reward/Risk Ratio Target</label>
+                            <input type="number" id="rewardRiskRatio" value="2.0" step="0.1"
+                                class="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-indigo-500 outline-none">
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Save Button -->
+                <div class="sticky bottom-6 flex justify-end">
+                    <button id="saveSettingsBtn"
+                        class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 px-8 rounded-xl shadow-lg shadow-indigo-600/20 transition-all transform hover:-translate-y-1 flex items-center gap-2">
+                        <span>💾</span> Save Configuration
+                    </button>
+                </div>
+
+            </div>
+        </div>
+    </main>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', loadSettings);
+        document.getElementById('saveSettingsBtn').addEventListener('click', saveSettings);
+
+        // Toggle Visuals
+        document.querySelectorAll('.toggle-checkbox').forEach(checkbox => {
+            checkbox.addEventListener('change', function () {
+                updateToggleVisual(this);
+            });
+        });
+
+        function updateToggleVisual(checkbox) {
+            const label = checkbox.nextElementSibling;
+            if (checkbox.checked) {
+                label.classList.remove('bg-gray-700');
+                label.classList.add('bg-indigo-500');
+            } else {
+                label.classList.add('bg-gray-700');
+                label.classList.remove('bg-indigo-500');
+            }
+        }
+
+        async function loadSettings() {
+            try {
+                const response = await fetch('/api/settings');
+                const settings = await response.json();
+
+                // General
+                document.getElementById('darkModeToggle').checked = settings.general.darkMode;
+                updateToggleVisual(document.getElementById('darkModeToggle'));
+
+                document.getElementById('compactViewToggle').checked = settings.general.compactView;
+                updateToggleVisual(document.getElementById('compactViewToggle'));
+
+                // API
+                document.getElementById('geminiKey').value = settings.api.geminiKey || '';
+                document.getElementById('marketDataKey').value = settings.api.marketDataKey || '';
+
+                // Scanner
+                document.getElementById('defaultInterval').value = settings.scanner.defaultInterval;
+                document.getElementById('defaultAssetClass').value = settings.scanner.defaultAssetClass;
+                document.getElementById('excludedSymbols').value = settings.scanner.excludedSymbols.join(', ');
+
+                // Risk
+                document.getElementById('maxRiskPerTrade').value = settings.risk.maxRiskPerTrade;
+                document.getElementById('maxDailyLoss').value = settings.risk.maxDailyLoss;
+                document.getElementById('stopLossType').value = settings.risk.stopLossType;
+                document.getElementById('rewardRiskRatio').value = settings.risk.rewardRiskRatio;
+
+            } catch (error) {
+                console.error('Failed to load settings:', error);
+            }
+        }
+
+        async function saveSettings() {
+            const btn = document.getElementById('saveSettingsBtn');
+            const originalContent = btn.innerHTML;
+
+            // Loading state
+            btn.disabled = true;
+            btn.innerHTML = '<span class="animate-spin">↻</span> Saving...';
+            btn.classList.add('opacity-75');
+
+            const settings = {
+                general: {
+                    darkMode: document.getElementById('darkModeToggle').checked,
+                    compactView: document.getElementById('compactViewToggle').checked
+                },
+                api: {
+                    geminiKey: document.getElementById('geminiKey').value,
+                    marketDataKey: document.getElementById('marketDataKey').value
+                },
+                scanner: {
+                    defaultInterval: parseInt(document.getElementById('defaultInterval').value),
+                    defaultAssetClass: document.getElementById('defaultAssetClass').value,
+                    excludedSymbols: document.getElementById('excludedSymbols').value.split(',').map(s => s.trim()).filter(s => s)
+                },
+                risk: {
+                    maxRiskPerTrade: parseFloat(document.getElementById('maxRiskPerTrade').value),
+                    maxDailyLoss: parseFloat(document.getElementById('maxDailyLoss').value),
+                    stopLossType: document.getElementById('stopLossType').value,
+                    rewardRiskRatio: parseFloat(document.getElementById('rewardRiskRatio').value)
+                }
+            };
+
+            try {
+                const response = await fetch('/api/settings', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(settings)
+                });
+
+                if (response.ok) {
+                    btn.innerHTML = '<span>✓</span> Saved!';
+                    btn.classList.remove('bg-indigo-600', 'hover:bg-indigo-500');
+                    btn.classList.add('bg-green-600', 'hover:bg-green-500');
+                } else {
+                    throw new Error('Failed to save');
+                }
+            } catch (error) {
+                console.error('Error saving settings:', error);
+                btn.innerHTML = '<span>✗</span> Error';
+                btn.classList.remove('bg-indigo-600', 'hover:bg-indigo-500');
+                btn.classList.add('bg-red-600', 'hover:bg-red-500');
+            } finally {
+                setTimeout(() => {
+                    btn.disabled = false;
+                    btn.innerHTML = originalContent;
+                    btn.classList.add('bg-indigo-600', 'hover:bg-indigo-500');
+                    btn.classList.remove('bg-green-600', 'hover:bg-green-500', 'bg-red-600', 'hover:bg-red-500', 'opacity-75');
+                }, 2000);
+            }
+        }
+    </script>
+</body>
+
+</html>

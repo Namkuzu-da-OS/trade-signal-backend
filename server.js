@@ -18,6 +18,7 @@ import journalRoutes from './routes/journal.js';
 import portfolioRoutes from './routes/portfolio.js';
 import healthRoutes from './routes/health.js';
 import backtestRoutes from './routes/backtest.js';
+import settingsRoutes from './routes/settings.js';
 
 const app = express();
 const PORT = process.env.PORT || CONFIG.DEFAULT_PORT;
@@ -43,7 +44,7 @@ app.use(helmet({
 // Rate Limiting - Prevent DoS attacks
 const limiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 500, // Increased to 500 to allow frontend usage (was 100)
+    max: 2000, // Increased to 2000 to allow frequent polling
     message: 'Too many requests from this IP, please try again later.',
     standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
     legacyHeaders: false, // Disable the `X-RateLimit-*` headers
@@ -82,6 +83,7 @@ app.use('/api/journal', journalRoutes);
 app.use('/api', portfolioRoutes); // /api/portfolio, /api/trade, /api/watchlist
 app.use('/api/backtest', backtestRoutes);
 app.use('/api', healthRoutes); // /api/health, /api/health/cache
+app.use('/api', settingsRoutes); // /api/settings
 
 // ============================================================================
 // SWAGGER

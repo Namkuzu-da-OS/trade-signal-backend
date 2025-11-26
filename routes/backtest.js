@@ -2,6 +2,7 @@ import express from 'express';
 import yahooFinance from 'yahoo-finance2';
 import { calculateIndicators } from '../analysis.js';
 import { scoreGoldenSetup } from '../strategies/intraday.js';
+import backtester from '../services/backtester.js';
 
 const router = express.Router();
 
@@ -187,6 +188,36 @@ router.post('/', async (req, res) => {
     } catch (error) {
         console.error('Backtest failed:', error);
         res.status(500).json({ error: error.message });
+    }
+});
+
+/**
+ * Intraday-Specific Backtest with Session Tracking
+ * POST /api/backtest/intraday
+ */
+router.post('/intraday', async (req, res) => {
+    const { symbol = 'SPY', days = 30, interval = '15m', minScore = 60 } = req.body;
+
+    try {
+        console.log(`[INTRADAY BACKTEST] ${symbol} - ${days} days - Min Score: ${minScore}`);
+
+        const results = await backtester.run(symbol, days, interval, minScore);
+
+        res.json({
+            success: true,
+            symbol,
+            days,
+            interval,
+            minScore,
+            ...results
+        });
+
+    } catch (error) {
+        console.error('[INTRADAY BACKTEST] Error:', error);
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
     }
 });
 

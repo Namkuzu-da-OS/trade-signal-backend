@@ -137,6 +137,9 @@
                 <a href="/signals.html"
                     class="px-6 py-4 text-sm font-semibold bg-gray-800 border-b-2 border-emerald-500 text-white">🎯 Live
                     Signals</a>
+                <a href="/settings.html"
+                    class="px-6 py-4 text-sm font-semibold text-gray-400 hover:text-white hover:bg-gray-800 transition">⚙️
+                    Settings</a>
             </div>
         </div>
     </nav>
@@ -962,12 +965,14 @@
                 const res = await fetch('/api/scan/market/status');
                 const data = await res.json();
                 const ticker = document.getElementById('marketTicker');
-                if (data.error) throw new Error(data.error);
-                ticker.innerHTML = Object.entries(data).map(([symbol, quote]) => {
-                    const color = quote.change >= 0 ? 'text-green-400' : 'text-red-400';
-                    const icon = quote.change >= 0 ? '▲' : '▼';
-                    return `<div class="flex items-center gap-2 min-w-fit"><span class="font-bold text-gray-300">${symbol}</span><span class="${color}">${quote.price.toFixed(2)}</span><span class="${color} text-xs">(${icon}${Math.abs(quote.change).toFixed(2)}%)</span></div>`;
-                }).join('<div class="w-px h-4 bg-gray-800 mx-4"></div>');
+                if (ticker) {
+                    if (data.error) throw new Error(data.error);
+                    ticker.innerHTML = Object.entries(data).map(([symbol, quote]) => {
+                        const color = quote.change >= 0 ? 'text-green-400' : 'text-red-400';
+                        const icon = quote.change >= 0 ? '▲' : '▼';
+                        return `<div class="flex items-center gap-2 min-w-fit"><span class="font-bold text-gray-300">${symbol}</span><span class="${color}">${quote.price.toFixed(2)}</span><span class="${color} text-xs">(${icon}${Math.abs(quote.change).toFixed(2)}%)</span></div>`;
+                    }).join('<div class="w-px h-4 bg-gray-800 mx-4"></div>');
+                }
             } catch (e) {
                 console.error('Market status error:', e);
             }
@@ -1122,7 +1127,23 @@
 
         async function startScanner() {
             try {
-                const response = await fetch('/api/auto/start', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ intervalMinutes: 15 }) });
+                // Fetch settings first to get preferred interval
+                let interval = 15;
+                try {
+                    const settingsRes = await fetch('/api/settings');
+                    if (settingsRes.ok) {
+                        const settings = await settingsRes.json();
+                        interval = settings.scanner.defaultInterval || 15;
+                    }
+                } catch (e) {
+                    console.warn('Could not fetch settings, using default interval 15');
+                }
+
+                const response = await fetch('/api/auto/start', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ intervalMinutes: interval })
+                });
                 const result = await response.json();
                 alert(result.message);
                 checkScannerStatus();

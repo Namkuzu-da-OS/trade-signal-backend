@@ -3,6 +3,11 @@
 // ============================================================================
 // All strategy thresholds, magic numbers, and configurable parameters
 
+import { getSettings } from './utils/settings.js';
+
+// Load user settings
+const userSettings = getSettings();
+
 export const CONFIG = {
     // ====================
     // STRATEGY THRESHOLDS
@@ -53,19 +58,21 @@ export const CONFIG = {
     // ====================
 
     // Default Risk Parameters
-    DEFAULT_RISK_PER_TRADE: 0.01,     // 1% of account
+    DEFAULT_RISK_PER_TRADE: userSettings.risk?.maxRiskPerTrade || 0.01,     // 1% of account
     DEFAULT_ACCOUNT_SIZE: 100000,     // $100k
     MAX_KELLY_ALLOCATION: 0.20,       // 20% max position size
     KELLY_MULTIPLIER: 0.5,            // Half-Kelly for safety
+    MAX_DAILY_LOSS: userSettings.risk?.maxDailyLoss || 500,
 
     // Risk/Reward Ratios
-    DEFAULT_RISK_REWARD: 2.0,
+    DEFAULT_RISK_REWARD: userSettings.risk?.rewardRiskRatio || 2.0,
     BREAKOUT_RISK_REWARD: 2.5,
     MEAN_REVERSION_RR: 1.5,
 
     // ATR-based Risk
     ATR_RISK_MULTIPLIER: 2.0,
     ATR_PERIOD: 14,
+    STOP_LOSS_TYPE: userSettings.risk?.stopLossType || 'ATR',
 
     // ====================
     // DATA FETCHING
@@ -97,9 +104,11 @@ export const CONFIG = {
     // ====================
 
     // AutoTrader Settings
-    AUTO_SCAN_INTERVAL: 15,           // Minutes between scans
+    AUTO_SCAN_INTERVAL: userSettings.scanner?.defaultInterval || 15,           // Minutes between scans
     AUTO_SIGNAL_THRESHOLD: 80,        // Minimum score for auto-trading
     AUTO_MAX_CONCURRENT: 10,          // Max concurrent symbol processing
+    AUTO_ASSET_CLASS: userSettings.scanner?.defaultAssetClass || 'EQUITY',
+    AUTO_EXCLUDED_SYMBOLS: userSettings.scanner?.excludedSymbols || [],
 
     // Alert Settings
     ALERT_SCORE_THRESHOLD: 80,        // Minimum score to log alert
@@ -125,6 +134,7 @@ export const CONFIG = {
     GEMINI_TEMPERATURE: 0.7,
     GEMINI_MAX_OUTPUT_TOKENS: 300,
     GEMINI_MODEL: 'gemini-2.0-flash',
+    GEMINI_API_KEY: userSettings.api?.geminiKey || process.env.GEMINI_API_KEY,
 
     // ====================
     // SCORING
