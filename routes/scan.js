@@ -425,4 +425,28 @@ router.get('/multi/:symbol', async (req, res) => {
     }
 });
 
+router.get('/market/status', async (req, res) => {
+    try {
+        const symbols = ['SPY', 'QQQ', '^VIX', 'BTC-USD'];
+        const promises = symbols.map(sym => yahooFinance.quote(sym));
+        const results = await Promise.all(promises);
+
+        const data = {};
+        results.forEach(q => {
+            // Handle VIX special case (caret)
+            const key = q.symbol === '^VIX' ? 'VIX' : q.symbol;
+            data[key] = {
+                price: q.regularMarketPrice,
+                change: q.regularMarketChangePercent,
+                prevClose: q.regularMarketPreviousClose
+            };
+        });
+
+        res.json(data);
+    } catch (error) {
+        console.error('Error fetching market status:', error.message);
+        res.status(500).json({ error: error.message });
+    }
+});
+
 export default router;

@@ -95,7 +95,8 @@ function initializeSchema() {
         "ALTER TABLE trades ADD COLUMN stop_loss REAL",
         "ALTER TABLE trades ADD COLUMN target_price REAL",
         "ALTER TABLE trades ADD COLUMN pnl REAL",
-        "ALTER TABLE trades ADD COLUMN status TEXT DEFAULT 'OPEN'"
+        "ALTER TABLE trades ADD COLUMN status TEXT DEFAULT 'OPEN'",
+        "ALTER TABLE live_signals ADD COLUMN ai_analysis TEXT"
     ];
     migrations.forEach(query => db.run(query, () => { }));
 

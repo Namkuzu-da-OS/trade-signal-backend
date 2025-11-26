@@ -151,4 +151,54 @@ router.get('/signals/live/:symbol', validateSymbol, (req, res) => {
     });
 });
 
+router.post('/signals/live/:symbol/analyze', validateSymbol, async (req, res) => {
+    const { symbol } = req.params;
+
+    db.get("SELECT * FROM live_signals WHERE symbol = ?", [symbol.toUpperCase()], async (err, signal) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (!signal) return res.status(404).json({ error: 'Signal not found' });
+
+        try {
+            // 1. Fetch fresh market data
+            const { historical, quote } = await fetchMarketData(symbol);
+            const indicators = calculateIndicators(historical);
+            const vix = await fetchVIX();
+
+            // 2. Prepare context for AI
+            const strategy = {
+                name: signal.best_strategy || 'Multi-Timeframe Confluence', // Fallback
+                score: signal.final_score,
+                signal: signal.final_signal
+            };
+
+            const marketState = {
+                price: quote.regularMarketPrice,
+                vix: vix.value,
+                gex: 0 // Placeholder until we have real GEX
+            };
+
+            const setup = {
+                entryZone: signal.entry_price,
+                stopLoss: signal.stop_loss,
+                target: signal.target_price
+            };
+
+            // 3. Generate Analysis
+            const aiResult = await generateAISentiment(symbol, indicators, strategy, marketState, setup);
+            const analysis = aiResult.combined_analysis;
+
+            // 4. Save to DB
+            db.run("UPDATE live_signals SET ai_analysis = ? WHERE symbol = ?", [analysis, symbol.toUpperCase()], (err) => {
+                if (err) console.error('Failed to save AI analysis:', err);
+            });
+
+            res.json({ analysis });
+
+        } catch (error) {
+            console.error('AI Analysis failed:', error);
+            res.status(500).json({ error: 'Failed to generate AI analysis' });
+        }
+    });
+});
+
 export default router;

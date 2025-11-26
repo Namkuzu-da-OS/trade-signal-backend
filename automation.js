@@ -1,4 +1,4 @@
-import { fetchDataForInterval, fetchMarketData, calculateIndicators } from './analysis.js';
+import { fetchDataForInterval, fetchMarketData, calculateIndicators, fetchVIX } from './analysis.js';
 import {
     scoreInstitutionalTrend,
     scoreVolatilitySqueeze,
@@ -18,6 +18,7 @@ import {
 import yahooFinance from 'yahoo-finance2';
 import CONFIG from './config.js';
 import logger from './utils/logger.js';
+import { notificationService } from './services/notification.js';
 
 // Concurrency control for parallel processing
 const CONCURRENCY_LIMIT = 5; // Process 5 symbols at a time
@@ -195,8 +196,25 @@ export class AutoTrader {
             this.log(logType, `${symbol}: ${aggregated.final_signal} (${aggregated.final_score}%)`);
 
             // Optional: Execute trade if STRONG BUY
-            if (aggregated.final_signal === 'STRONG BUY' && aggregated.final_score >= 90) {
+            if (aggregated.final_signal === 'STRONG BUY' && aggregated.final_score >= 80) {
                 this.log('success', `🎯 STRONG BUY detected for ${symbol}!`);
+
+                // 1. Generate AI Analysis
+                const aiResult = await this.aiGenerator(symbol, {}, aggregated.best_strategy, { price: aggregated.entry_price, vix: 0, gex: 0 }, aggregated.best_strategy.setup);
+                const aiAnalysis = aiResult.combined_analysis;
+
+                // 2. Send Discord Alert
+                await notificationService.sendTradeAlert({
+                    symbol,
+                    signal: aggregated.final_signal,
+                    score: aggregated.final_score,
+                    strategy: aggregated.best_strategy.name,
+                    price: aggregated.entry_price,
+                    stopLoss: aggregated.best_strategy.setup?.stopLoss,
+                    target: aggregated.best_strategy.setup?.target,
+                    aiAnalysis
+                });
+
                 // Uncomment to enable auto-trading:
                 // await this.executeTradeLogic(symbol, aggregated, aggregated.entry_price);
             }
@@ -252,7 +270,9 @@ export class AutoTrader {
 
             // Run strategies based on timeframe
             const strategies = [];
-            const vix = { value: 20 }; // Mock VIX for simplicity
+            // Fetch Real VIX
+            const vixData = await fetchVIX();
+            const vix = { value: vixData.value || 20 };
 
             if (interval === '15m' || interval === '1h') {
                 // Intraday strategies
@@ -377,6 +397,8 @@ export class AutoTrader {
             signal_1d: best1d.signal || 'NEUTRAL',
             score_1d: best1d.score || 0,
             top_strategy_1d: best1d.name || 'None',
+
+            best_strategy: [best15m, best1h, best1d].reduce((prev, current) => (prev.score > current.score) ? prev : current),
 
             scan_timestamp: new Date().toISOString()
         };

@@ -286,7 +286,7 @@
                                 <option value="TSLA">TSLA</option>
                                 <option value="AMD">AMD</option>
                             </select>
-                            <button id="scanBtn" onclick="runScan()"
+                            <button id="scanBtn"
                                 class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 px-6 rounded-lg transition-all">
                                 🔍 Scan
                             </button>
@@ -295,6 +295,9 @@
                             For watchlist scanning, visit <a href="/signals.html"
                                 class="text-indigo-400 hover:text-indigo-300 underline">Live Signals</a>
                         </div>
+
+                        <!-- Strategy Results List -->
+                        <div id="strategyList" class="mt-4 space-y-2 max-h-60 overflow-y-auto custom-scrollbar"></div>
                     </div>
                 </div>
 
@@ -312,7 +315,7 @@
                         <div class="flex gap-2">
                             <input type="text" id="watchlistInput" placeholder="Add Symbol"
                                 class="w-full bg-slate-900 border border-slate-700 text-white rounded px-2 py-1 text-sm focus:outline-none focus:border-indigo-500 uppercase">
-                            <button onclick="addToWatchlist()"
+                            <button id="addWatchlistBtn"
                                 class="bg-indigo-600 hover:bg-indigo-500 text-white rounded px-3 py-1 text-sm">+</button>
                         </div>
                     </div>
@@ -992,7 +995,7 @@
                     document.getElementById('trendWeekly').textContent = '...';
                     document.getElementById('trendMonthly').textContent = '...';
 
-                    const res = await fetch(`/api/analyze/multi/${symbol}`);
+                    const res = await fetch(`/api/scan/multi/${symbol}`);
                     const data = await res.json();
 
                     if (data.error) throw new Error(data.error);
@@ -1292,11 +1295,19 @@
 
                     data.forEach(item => {
                         const div = document.createElement('div');
-                        div.className = 'flex justify-between items-center bg-slate-900/50 p-2 rounded hover:bg-slate-700 transition-colors cursor-pointer group';
+                        div.className = 'flex justify-between items-center bg-slate-900/50 p-2 rounded hover:bg-slate-700 transition-colors group';
                         div.innerHTML = `
-                        <span class="font-mono text-sm text-indigo-300 font-bold" onclick="loadSymbol('${item.symbol}')">${item.symbol}</span>
-                        <button onclick="removeFromWatchlist('${item.symbol}')" class="text-slate-600 hover:text-rose-400 opacity-0 group-hover:opacity-100 transition-opacity">×</button>
+                        <span class="font-mono text-sm text-indigo-300 font-bold cursor-pointer" data-symbol="${item.symbol}">${item.symbol}</span>
+                        <button class="remove-watchlist-btn text-slate-600 hover:text-rose-400 opacity-0 group-hover:opacity-100 transition-opacity" data-symbol="${item.symbol}">×</button>
                     `;
+
+                        // Add event listeners
+                        div.querySelector('span').addEventListener('click', () => loadSymbol(item.symbol));
+                        div.querySelector('.remove-watchlist-btn').addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            removeFromWatchlist(item.symbol);
+                        });
+
                         container.appendChild(div);
                     });
                 } catch (err) {
@@ -1344,14 +1355,6 @@
                 runScan();
             }
 
-            // Initialize
-            fetchWatchlist();
-            switchMode('SWING');
-
-
-
-
-
             // ============================================================================
             // DRAG & DROP LOGIC
             // ============================================================================
@@ -1396,11 +1399,19 @@
                     });
                 });
 
+                // Watchlist add button
+                document.getElementById('addWatchlistBtn').addEventListener('click', addToWatchlist);
+
+                // Allow Enter key to add to watchlist
+                document.getElementById('watchlistInput').addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') addToWatchlist();
+                });
+
                 // Initialize default mode
                 switchMode('SWING');
 
                 // Initial Watchlist Load
-                refreshWatchlist();
+                fetchWatchlist();
             });
         </script>
 </body>

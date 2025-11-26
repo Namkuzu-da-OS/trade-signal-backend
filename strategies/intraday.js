@@ -397,45 +397,63 @@ export function scoreVIXFlow(indicators, vixHistory) {
     let score = 0;
     let signal = 'NEUTRAL';
 
-    // 1. Bullish Divergence: Price Down, VIX Down (or Flat)
-    // Normal: Price Down -> VIX Up
-    // Divergence: Price Down -> VIX Down (Market is not scared of the drop)
+    // 1. Bullish Divergence
     if (priceTrend < 0 && vixTrend < 0) {
-        criteria.push('Bullish Divergence: Price dropping but VIX is falling (No Fear)');
+        criteria.push({
+            name: 'Bullish Divergence',
+            value: 'YES',
+            met: true,
+            description: 'Price dropping but VIX is falling (No Fear)'
+        });
         score += 70;
         signal = 'BUY';
     }
 
-    // 2. Bearish Divergence: Price Up, VIX Up
-    // Normal: Price Up -> VIX Down
-    // Divergence: Price Up -> VIX Up (Hedging activity increasing despite rally)
+    // 2. Bearish Divergence
     if (priceTrend > 0 && vixTrend > 0) {
-        criteria.push('Bearish Divergence: Price rising but VIX is rising (Fear increasing)');
+        criteria.push({
+            name: 'Bearish Divergence',
+            value: 'YES',
+            met: true,
+            description: 'Price rising but VIX is rising (Fear increasing)'
+        });
         score += 70;
         signal = 'SELL';
     }
 
-    // 3. VIX Crush (Trend Confirmation)
-    // Price Up + VIX Down (Strong Bullish Trend)
-    if (priceTrend > 0 && vixTrend < -0.5) { // VIX dropping significantly
-        criteria.push('Trend Confirmation: Rally supported by falling VIX');
+    // 3. VIX Crush
+    if (priceTrend > 0 && vixTrend < -0.5) {
+        criteria.push({
+            name: 'VIX Crush',
+            value: 'YES',
+            met: true,
+            description: 'Rally supported by falling VIX'
+        });
         score += 50;
         signal = 'BUY';
     }
 
-    // 4. VIX Spike (Trend Confirmation)
-    // Price Down + VIX Up (Strong Bearish Trend)
-    if (priceTrend < 0 && vixTrend > 0.5) { // VIX rising significantly
-        criteria.push('Trend Confirmation: Sell-off supported by rising VIX');
+    // 4. VIX Spike
+    if (priceTrend < 0 && vixTrend > 0.5) {
+        criteria.push({
+            name: 'VIX Spike',
+            value: 'YES',
+            met: true,
+            description: 'Sell-off supported by rising VIX'
+        });
         score += 50;
         signal = 'SELL';
     }
 
     return {
+        id: 'vix-flow',
         name: 'VIX Flow Divergence',
+        type: 'Divergence',
+        description: 'Analyzes the correlation between Price and VIX.',
         score,
         signal,
+        color: score >= 60 ? 'emerald' : score >= 40 ? 'amber' : 'slate',
         criteria,
-        explanation: 'Analyzes the correlation between Price and VIX. Divergences often precede reversals.'
+        education: 'Analyzes the correlation between Price and VIX. Divergences often precede reversals. A falling VIX during a price drop suggests a lack of fear (Bullish), while a rising VIX during a rally suggests hedging (Bearish).'
     };
 }
