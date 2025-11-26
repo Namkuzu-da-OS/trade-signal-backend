@@ -12,8 +12,7 @@ import {
 import {
     scoreOpeningRangeBreakout,
     scoreVWAPBounce,
-    scoreGoldenSetup,
-    scoreVIXFlow
+    scoreGoldenSetup
 } from './strategies/intraday.js';
 import yahooFinance from 'yahoo-finance2';
 import CONFIG from './config.js';

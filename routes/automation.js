@@ -62,6 +62,20 @@ router.post('/auto/stop', (req, res) => {
     });
 });
 
+router.post('/auto/cycle', async (req, res) => {
+    if (!global.autoTrader) return res.status(503).json({ error: 'AutoTrader not ready' });
+
+    try {
+        await global.autoTrader.runCycle();
+        res.json({
+            message: 'Manual scan cycle completed',
+            status: 'success'
+        });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 router.get('/auto/logs', (req, res) => {
     if (!global.autoTrader) return res.json({ logs: [], totalLogs: 0 });
 

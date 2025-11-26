@@ -208,6 +208,18 @@
             </div>
         </div>
 
+        <!-- Signal Type Tabs -->
+        <div class="flex border-b border-gray-800 mb-6">
+            <button id="tabIntraday"
+                class="px-6 py-3 text-sm font-medium text-indigo-400 border-b-2 border-indigo-500 focus:outline-none transition-colors">
+                ☀️ Intraday (Day Trading)
+            </button>
+            <button id="tabSwing"
+                class="px-6 py-3 text-sm font-medium text-gray-400 hover:text-gray-200 focus:outline-none transition-colors">
+                🌊 Swing (Multi-Day)
+            </button>
+        </div>
+
         <!-- View Controls -->
         <div class="flex justify-between items-center mb-4">
             <div class="flex gap-2">
@@ -436,6 +448,7 @@
         let countdownInterval;
         let refreshCountdown = 30;
         let currentSignals = []; // Store signals for filtering
+        let currentTab = 'INTRADAY'; // 'INTRADAY' or 'SWING'
 
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {
@@ -454,6 +467,10 @@
             document.getElementById('refreshBtn').addEventListener('click', refreshSignals);
             document.getElementById('consoleToggleBtn').addEventListener('click', toggleConsole);
             document.getElementById('modalCloseBtn').addEventListener('click', closeModal);
+
+            // Tab Controls
+            document.getElementById('tabIntraday').addEventListener('click', () => switchTab('INTRADAY'));
+            document.getElementById('tabSwing').addEventListener('click', () => switchTab('SWING'));
 
             // Backtest Controls
             document.getElementById('backtestBtn').addEventListener('click', openBacktestModal);
@@ -487,6 +504,25 @@
                 if (e.target.id === 'detailsModal') closeModal();
             });
         });
+
+        function switchTab(tab) {
+            currentTab = tab;
+            const tabIntraday = document.getElementById('tabIntraday');
+            const tabSwing = document.getElementById('tabSwing');
+
+            if (tab === 'INTRADAY') {
+                tabIntraday.classList.add('text-indigo-400', 'border-indigo-500');
+                tabIntraday.classList.remove('text-gray-400', 'border-transparent');
+                tabSwing.classList.add('text-gray-400', 'border-transparent');
+                tabSwing.classList.remove('text-indigo-400', 'border-indigo-500');
+            } else {
+                tabSwing.classList.add('text-indigo-400', 'border-indigo-500');
+                tabSwing.classList.remove('text-gray-400', 'border-transparent');
+                tabIntraday.classList.add('text-gray-400', 'border-transparent');
+                tabIntraday.classList.remove('text-indigo-400', 'border-indigo-500');
+            }
+            renderSignals();
+        }
 
         function switchView(view) {
             const tableBtn = document.getElementById('viewTableBtn');
@@ -618,6 +654,14 @@
             const filter = document.getElementById('filterSignal').value;
             let signals = currentSignals;
 
+            // Filter by Tab (Intraday vs Swing)
+            if (currentTab === 'INTRADAY') {
+                signals = signals.filter(s => s.score_15m >= 40 || s.score_1h >= 40);
+            } else {
+                signals = signals.filter(s => s.score_1d >= 40);
+            }
+
+            // Filter by Type
             if (filter !== 'ALL') {
                 signals = signals.filter(s => {
                     if (filter === 'BUY') return s.final_signal.includes('BUY');

@@ -1,4 +1,5 @@
 import CONFIG from '../config.js';
+import { sessionService } from '../services/session.js';
 
 /**
  * Opening Range Breakout (ORB)
@@ -6,135 +7,68 @@ import CONFIG from '../config.js';
  * Logic: Detect breakout above/below first 30min of trading
  */
 export function scoreOpeningRangeBreakout(indicators, marketState) {
-    const { priceHistory, rvol } = indicators;
+    const { priceHistory, rvol, highHistory, lowHistory, dates } = indicators;
 
-    // Only valid during market hours or if we have data covering the open
-    // Ideally we check if the current bar is after 10:00 AM
-    // For simplicity, we'll assume if we have data, we can check the first 30m of the current session.
-    // However, priceHistory is just an array of closes. We need high/lows.
-    // indicators object in server.js currently only has arrays of calculated values.
-    // We need the raw historical data (OHLC) to calculate ORB properly.
-    // server.js passes 'indicators' which has priceHistory (closes).
-    // We need to modify server.js to pass 'historical' or extract OHLC from it.
+    // 1. Get Opening Range from Session Service
+    // We need to construct candle objects for the service
+    const candles = dates.map((d, i) => ({
+        date: d,
+        high: highHistory[i],
+        low: lowHistory[i],
+        close: priceHistory[i]
+    }));
 
-    // Let's look at server.js again. It calls: scoreInstitutionalTrend(indicators, vix)
-    // indicators comes from calculateIndicators(historical).
-    // calculateIndicators returns { dates, priceHistory, openHistory, highHistory, lowHistory, ... }
-    // I need to ensure calculateIndicators returns high/low history.
+    const orb = sessionService.getOpeningRange(candles);
 
-    // Assuming indicators has highHistory and lowHistory.
-
-    // Get market open time (9:30 AM ET)
-    // This is tricky with just an array of data without explicit timestamps per candle in the indicators object,
-    // although indicators.dates exists.
-
-    // Simplified logic for now:
-    // We will assume the data passed is for the "current day" or relevant period.
-    // But fetchDataForInterval returns N days/candles.
-
-    // Let's rely on the fact that for '15m' interval, we fetch 5 days.
-    // We need to identify the *current day's* opening range.
-
-    // We need the 'dates' array to find today's session start.
-    const dates = indicators.dates;
-    if (!dates || dates.length === 0) return { name: 'Opening Range Breakout', score: 0, signal: 'NEUTRAL', color: 'slate', criteria: [], setup: null };
-
-    const lastDate = new Date(dates[dates.length - 1]);
-    const todayStr = lastDate.toDateString();
-
-    // Find indices for today
-    let startIndex = -1;
-    for (let i = dates.length - 1; i >= 0; i--) {
-        if (new Date(dates[i]).toDateString() !== todayStr) {
-            startIndex = i + 1;
-            break;
-        }
-    }
-    if (startIndex === -1) startIndex = 0; // All data is today
-
-    const todayCandles = {
-        highs: indicators.highHistory.slice(startIndex),
-        lows: indicators.lowHistory.slice(startIndex),
-        closes: indicators.priceHistory.slice(startIndex),
-        volumes: indicators.volumeHistory ? indicators.volumeHistory.slice(startIndex) : []
-    };
-
-    // We need at least 2 candles (30 mins if 15m interval) to define ORB
-    // If interval is 1h, the first candle IS the ORB (first hour).
-    // Let's assume 15m candles for ORB logic usually.
-
-    // If we don't have enough candles for today, return WAIT
-    if (todayCandles.closes.length < 2) {
+    if (!orb) {
         return {
+            id: 'orb-strategy',
             name: 'Opening Range Breakout',
             score: 0,
             signal: 'WAIT',
-            color: 'amber',
-            criteria: [{ met: false, description: 'Waiting for first 30m to close' }],
+            color: 'slate',
+            criteria: [{ met: false, description: 'Waiting for Opening Range (9:30-10:00 ET)' }],
             setup: null
         };
     }
 
-    // Define ORB (First 30 mins)
-    // If 15m candles: first 2 candles.
-    // If 1h candles: first 1 candle.
-
-    // We can't easily know the interval here unless passed.
-    // But we can infer or just take the first N candles.
-    // Let's assume 15m data for ORB.
-
-    const orbHigh = Math.max(todayCandles.highs[0], todayCandles.highs[1] || -Infinity);
-    const orbLow = Math.min(todayCandles.lows[0], todayCandles.lows[1] || Infinity);
-
-    // If 1h data, just take the first candle
-    // We'll refine this later. For now, taking first 2 candles max.
-
-    const orRange = orbHigh - orbLow;
-    const currentPrice = todayCandles.closes[todayCandles.closes.length - 1];
-
+    const currentPrice = priceHistory[priceHistory.length - 1];
     const criteria = [];
     let score = 0;
     let signal = 'NEUTRAL';
 
     // 1. Breakout Check
-    const brokeAbove = currentPrice > orbHigh;
-    criteria.push({
-        name: 'Breakout Above',
-        value: brokeAbove ? 'YES' : 'NO',
-        met: brokeAbove,
-        description: `Price ${brokeAbove ? 'broke above' : 'below'} ORB high (${orbHigh.toFixed(2)})`
-    });
-    if (brokeAbove) score += 40;
+    const brokeAbove = currentPrice > orb.high;
+    const brokeBelow = currentPrice < orb.low;
 
-    const brokeBelow = currentPrice < orbLow;
     criteria.push({
-        name: 'Breakdown Below',
-        value: brokeBelow ? 'YES' : 'NO',
-        met: brokeBelow,
-        description: `Price ${brokeBelow ? 'broke below' : 'above'} ORB low (${orbLow.toFixed(2)})`
+        name: 'Breakout Status',
+        value: brokeAbove ? 'ABOVE' : brokeBelow ? 'BELOW' : 'INSIDE',
+        met: brokeAbove || brokeBelow,
+        description: `Price relative to ORB (${orb.low.toFixed(2)} - ${orb.high.toFixed(2)})`
     });
-    if (brokeBelow) score += 40;
+    if (brokeAbove || brokeBelow) score += 40;
 
-    // 2. Volume Confirmation (using rvol from last candle)
-    const volConfirm = indicators.rvol > CONFIG.ORB_VOLUME_CONFIRMATION;
+    // 2. Volume Confirmation
+    const volConfirm = rvol > CONFIG.ORB_VOLUME_CONFIRMATION;
     criteria.push({
         name: 'Volume Confirmation',
-        value: indicators.rvol.toFixed(2) + 'x',
+        value: rvol.toFixed(2) + 'x',
         met: volConfirm,
         description: `Relative volume > ${CONFIG.ORB_VOLUME_CONFIRMATION}`
     });
     if (volConfirm) score += 20;
 
-    // 3. Range Quality
-    const rangePercent = (orRange / orbLow) * 100;
-    const goodRange = rangePercent > (CONFIG.ORB_RANGE_MIN_PERCENT * 100); // Minimum range quality
+    // 3. Session Phase Check
+    const phase = sessionService.getSessionPhase();
+    const isMorning = phase === 'MORNING_TREND';
     criteria.push({
-        name: 'Range Quality',
-        value: rangePercent.toFixed(2) + '%',
-        met: goodRange,
-        description: `ORB range > ${(CONFIG.ORB_RANGE_MIN_PERCENT * 100).toFixed(1)}%`
+        name: 'Session Phase',
+        value: phase,
+        met: isMorning,
+        description: 'Best breakouts occur in Morning Trend phase'
     });
-    if (goodRange) score += 10;
+    if (isMorning) score += 10;
 
     // Signal Logic
     if (brokeAbove && volConfirm) signal = 'BUY';
@@ -145,15 +79,15 @@ export function scoreOpeningRangeBreakout(indicators, marketState) {
     let setup = null;
     if (signal === 'BUY') {
         setup = {
-            entryZone: orbHigh,
-            stopLoss: orbLow,
-            target: orbHigh + (orRange * 2)
+            entryZone: orb.high,
+            stopLoss: orb.low,
+            target: orb.high + (orb.range * 2)
         };
     } else if (signal === 'SELL') {
         setup = {
-            entryZone: orbLow,
-            stopLoss: orbHigh,
-            target: orbLow - (orRange * 2)
+            entryZone: orb.low,
+            stopLoss: orb.high,
+            target: orb.low - (orb.range * 2)
         };
     }
 
@@ -162,103 +96,157 @@ export function scoreOpeningRangeBreakout(indicators, marketState) {
         name: 'Opening Range Breakout',
         type: 'Breakout',
         description: 'Trading the breakout of the first 30 minutes of the session.',
-        score: Math.min(score, 100),
+        score: Math.max(0, Math.min(score, 100)),
         signal,
         color: score >= 60 ? 'emerald' : score >= 40 ? 'amber' : 'slate',
         criteria,
         setup,
-        orHigh: orbHigh,
-        orLow: orbLow,
-        orRange,
-        education: "The Opening Range Breakout (ORB) captures the initial direction established by institutional money in the first 30 minutes. A breakout with volume often leads to a sustained trend for the day."
+        orHigh: orb.high,
+        orLow: orb.low
     };
 }
 
 /**
- * VWAP Bounce
- * Timeframes: 15min, 1hr
- * Logic: Price bounces off VWAP with volume
+ * VWAP Reversion (Institutional Fade)
+ * Logic: Fade moves into 2SD/3SD bands
  */
-export function scoreVWAPBounce(indicators) {
-    const { vwapHistory, priceHistory, rvol } = indicators;
-    const currentPrice = priceHistory[priceHistory.length - 1];
-    const currentVWAP = vwapHistory[vwapHistory.length - 1];
+export function scoreVWAPReversion(indicators) {
+    const { vwapBands, priceHistory, rsi } = indicators;
 
+    if (!vwapBands) return { id: 'vwap-reversion', score: 0, signal: 'NEUTRAL', criteria: [] };
+
+    const currentPrice = priceHistory[priceHistory.length - 1];
     const criteria = [];
     let score = 0;
-
-    // 1. Proximity to VWAP
-    const dist = Math.abs(currentPrice - currentVWAP) / currentVWAP;
-    const nearVWAP = dist < CONFIG.VWAP_PROXIMITY_THRESHOLD;
-    criteria.push({
-        name: 'Near VWAP',
-        value: (dist * 100).toFixed(2) + '%',
-        met: nearVWAP,
-        description: `Price is within ${(CONFIG.VWAP_PROXIMITY_THRESHOLD * 100).toFixed(1)}% of VWAP`
-    });
-    if (nearVWAP) score += 30;
-
-    // 2. Volume Spike
-    const volSpike = rvol > CONFIG.VOLUME_SPIKE;
-    criteria.push({
-        name: 'Volume Spike',
-        value: rvol.toFixed(2) + 'x',
-        met: volSpike,
-        description: `Volume is spiking > ${CONFIG.VOLUME_SPIKE}x average`
-    });
-    if (volSpike) score += 20;
-
-    // 3. Trend Alignment (Price > SMA200 for Buy)
-    // We might not have SMA200 on intraday if not enough data, check SMA20
-    const sma20 = indicators.sma20History[indicators.sma20History.length - 1];
-    const trendAligned = currentPrice > sma20;
-    criteria.push({
-        name: 'Trend Alignment',
-        value: trendAligned ? 'UP' : 'DOWN',
-        met: trendAligned,
-        description: `Price above SMA20`
-    });
-    if (trendAligned) score += 20;
-
     let signal = 'NEUTRAL';
-    if (nearVWAP && volSpike) {
-        signal = trendAligned ? 'BUY' : 'SELL'; // Simplified
-        score += 30;
-    }
 
+    // 1. Band Extension
+    const above2SD = currentPrice > vwapBands.upper2;
+    const below2SD = currentPrice < vwapBands.lower2;
+    const above3SD = currentPrice > vwapBands.upper3;
+    const below3SD = currentPrice < vwapBands.lower3;
+
+    criteria.push({
+        name: 'Band Extension',
+        value: above3SD ? '> 3SD' : above2SD ? '> 2SD' : below3SD ? '< 3SD' : below2SD ? '< 2SD' : 'Normal',
+        met: above2SD || below2SD,
+        description: 'Price extended beyond 2 Standard Deviations'
+    });
+    if (above3SD || below3SD) score += 50;
+    else if (above2SD || below2SD) score += 30;
+
+    // 2. RSI Divergence/Extreme
+    const isOverbought = rsi > 70;
+    const isOversold = rsi < 30;
+
+    criteria.push({
+        name: 'RSI Extreme',
+        value: rsi.toFixed(1),
+        met: (above2SD && isOverbought) || (below2SD && isOversold),
+        description: 'RSI confirms extension'
+    });
+    if ((above2SD && isOverbought) || (below2SD && isOversold)) score += 30;
+
+    // Signal Logic
+    if (above2SD && isOverbought) signal = 'SHORT FADE';
+    if (below2SD && isOversold) signal = 'LONG FADE';
+
+    // Setup
     let setup = null;
-    if (signal === 'BUY') {
+    if (signal === 'LONG FADE') {
         setup = {
-            entryZone: currentVWAP,
-            stopLoss: currentVWAP * 0.99,
-            target: currentVWAP * 1.02
+            entryZone: vwapBands.lower2,
+            stopLoss: vwapBands.lower3 * 0.995,
+            target: vwapBands.vwap // Revert to mean
         };
-    } else if (signal === 'SELL') {
+    } else if (signal === 'SHORT FADE') {
         setup = {
-            entryZone: currentVWAP,
-            stopLoss: currentVWAP * 1.01,
-            target: currentVWAP * 0.98
+            entryZone: vwapBands.upper2,
+            stopLoss: vwapBands.upper3 * 1.005,
+            target: vwapBands.vwap
         };
     }
 
     return {
-        id: 'vwap-bounce',
-        name: 'VWAP Bounce',
+        id: 'vwap-reversion',
+        name: 'VWAP Reversion',
         type: 'Reversion',
-        description: 'Trading bounces off the Volume Weighted Average Price.',
-        score: Math.min(score, 100),
+        description: 'Fading extreme moves away from VWAP (2SD/3SD).',
+        score: Math.max(0, Math.min(score, 100)),
         signal,
-        color: score >= 60 ? 'emerald' : score >= 40 ? 'amber' : 'slate',
+        color: score >= 60 ? 'purple' : 'slate',
         criteria,
-        setup,
-        education: "Institutions often defend the VWAP. A bounce off this level with high volume confirms their participation."
+        setup
     };
 }
 
 /**
- * The Golden Setup
- * Timeframes: 15min (Execution), Daily (Bias)
- * Logic: Trade WITH Daily Trend + Pullback to VWAP + Volume Trigger
+ * Value Area Play
+ * Logic: Trade breakouts of VAH or Rejections of VAL
+ */
+export function scoreValueAreaPlay(indicators) {
+    const { volumeProfile, priceHistory, rvol } = indicators;
+
+    if (!volumeProfile) return { id: 'value-area', score: 0, signal: 'NEUTRAL', criteria: [] };
+
+    const currentPrice = priceHistory[priceHistory.length - 1];
+    const { vah, val, poc } = volumeProfile;
+
+    const criteria = [];
+    let score = 0;
+    let signal = 'NEUTRAL';
+
+    // 1. Location relative to Value Area
+    const aboveVAH = currentPrice > vah;
+    const belowVAL = currentPrice < val;
+    const insideVA = currentPrice >= val && currentPrice <= vah;
+
+    // Logic: Breakout above VAH with Volume
+    if (aboveVAH && rvol > 1.5) {
+        criteria.push({ name: 'VAH Breakout', value: 'YES', met: true, description: 'Price broke above Value Area High' });
+        score += 40;
+        signal = 'BUY BREAKOUT';
+    }
+
+    // Logic: Breakdown below VAL with Volume
+    if (belowVAL && rvol > 1.5) {
+        criteria.push({ name: 'VAL Breakdown', value: 'YES', met: true, description: 'Price broke below Value Area Low' });
+        score += 40;
+        signal = 'SELL BREAKDOWN';
+    }
+
+    // Logic: Rejection (Mean Reversion inside VA)
+    // If price touched VAL and bounced up
+    // This requires looking at previous candle, simplified here
+
+    // Volume Confirmation
+    if (rvol > 1.5) {
+        criteria.push({ name: 'Volume Spike', value: rvol.toFixed(1) + 'x', met: true, description: 'High volume confirms move' });
+        score += 20;
+    }
+
+    let setup = null;
+    if (signal === 'BUY BREAKOUT') {
+        setup = { entryZone: vah, stopLoss: poc, target: vah + (vah - poc) };
+    } else if (signal === 'SELL BREAKDOWN') {
+        setup = { entryZone: val, stopLoss: poc, target: val - (poc - val) };
+    }
+
+    return {
+        id: 'value-area',
+        name: 'Value Area Play',
+        type: 'Profile',
+        description: 'Trading breakouts or rejections of the Volume Profile Value Area.',
+        score: Math.max(0, Math.min(score, 100)),
+        signal,
+        color: score >= 60 ? 'blue' : 'slate',
+        criteria,
+        setup
+    };
+}
+
+/**
+ * The Golden Setup (Enhanced)
  */
 export function scoreGoldenSetup(indicators, dailyTrend, marketState) {
     const { priceHistory, vwapHistory, rvol, rsi } = indicators;
@@ -269,27 +257,26 @@ export function scoreGoldenSetup(indicators, dailyTrend, marketState) {
     let score = 0;
     let signal = 'NEUTRAL';
 
-    // 1. Multi-Timeframe Alignment (The Trend is Your Friend)
-    // dailyTrend is expected to be { bullish: boolean, bearish: boolean, sma20: number }
+    // 1. Multi-Timeframe Alignment
     const isBullish = dailyTrend?.bullish;
     const isBearish = dailyTrend?.bearish;
 
     criteria.push({
-        name: 'Daily Trend Alignment',
+        name: 'Daily Trend',
         value: isBullish ? 'BULLISH' : isBearish ? 'BEARISH' : 'NEUTRAL',
         met: isBullish || isBearish,
         description: `Daily Price ${isBullish ? '>' : '<'} SMA20`
     });
     if (isBullish || isBearish) score += 30;
 
-    // 2. Key Level Interaction (VWAP)
+    // 2. VWAP Interaction
     const distToVWAP = Math.abs(currentPrice - currentVWAP) / currentVWAP;
     const nearVWAP = distToVWAP < CONFIG.VWAP_PROXIMITY_GOLDEN;
     criteria.push({
         name: 'VWAP Interaction',
         value: (distToVWAP * 100).toFixed(2) + '%',
         met: nearVWAP,
-        description: `Price is within ${(CONFIG.VWAP_PROXIMITY_GOLDEN * 100).toFixed(1)}% of VWAP`
+        description: `Price near VWAP`
     });
     if (nearVWAP) score += 20;
 
@@ -299,84 +286,40 @@ export function scoreGoldenSetup(indicators, dailyTrend, marketState) {
         name: 'Volume Trigger',
         value: rvol.toFixed(2) + 'x',
         met: volTrigger,
-        description: `RVOL > ${CONFIG.VOLUME_CONFIRMATION} indicates institutional activity`
+        description: `RVOL > ${CONFIG.VOLUME_CONFIRMATION}`
     });
     if (volTrigger) score += 20;
 
-    // 4. Momentum Confirmation (RSI)
-    // Bullish: RSI > 40 (not oversold, has momentum) AND < 70 (not overbought)
-    // Bearish: RSI < 60 (not overbought) AND > 30 (not oversold)
+    // 4. Momentum
     let momentum = false;
     if (isBullish && rsi > 40 && rsi < 75) momentum = true;
     if (isBearish && rsi < 60 && rsi > 25) momentum = true;
-
-    criteria.push({
-        name: 'Momentum Health',
-        value: rsi.toFixed(1),
-        met: momentum,
-        description: isBullish ? 'RSI > 40 (Bullish Support)' : 'RSI < 60 (Bearish Resistance)'
-    });
     if (momentum) score += 10;
 
-    // 5. GEX Regime (Bonus)
-    // Positive GEX = Mean Reversion (Buy dips to VWAP)
-    // Negative GEX = Volatility (Breakouts/Trend)
-    const gex = marketState?.gex || 0;
-    let gexAligned = false;
-    if (isBullish && gex > 0 && nearVWAP) gexAligned = true; // Buy dip in stable market
-    if (isBearish && gex < 0) gexAligned = true; // Short breakdown in volatile market
+    // 5. Session Phase (New)
+    const phase = sessionService.getSessionPhase();
+    const isLunch = phase === 'LUNCH_CHOP';
 
-    criteria.push({
-        name: 'GEX Regime',
-        value: `$${gex.toFixed(2)}B`,
-        met: gexAligned,
-        description: gex > 0 ? 'Positive Gamma (Dip Buying)' : 'Negative Gamma (Volatility)'
-    });
-    if (gexAligned) score += 20;
-
-    // 6. Time of Day Filter (Avoid Lunch Chop)
-    const isLunch = isLunchChop();
     if (isLunch) {
-        criteria.push({
-            name: 'Time of Day',
-            value: 'LUNCH CHOP',
-            met: false,
-            description: 'Avoid trading between 12:00 - 1:30 PM ET'
-        });
-        score -= 30; // Significant penalty
+        criteria.push({ name: 'Session', value: 'LUNCH', met: false, description: 'Avoid Lunch Chop' });
+        score -= 30;
     } else {
-        criteria.push({
-            name: 'Time of Day',
-            value: 'PRIME TIME',
-            met: true,
-            description: 'Trading during active hours'
-        });
+        criteria.push({ name: 'Session', value: phase, met: true, description: 'Active Session' });
         score += 10;
     }
 
-
-    // Determine Signal
+    // Signal Logic
     if (score >= 80) {
         if (isBullish && currentPrice > currentVWAP) signal = 'GOLDEN LONG';
         else if (isBearish && currentPrice < currentVWAP) signal = 'GOLDEN SHORT';
-    } else if (score >= 50) {
-        signal = 'WATCH';
-    }
+    } else if (score >= 50) signal = 'WATCH';
 
-    // Setup Details
+    // Setup
     let setup = null;
     if (signal === 'GOLDEN LONG') {
-        setup = {
-            entryZone: currentVWAP,
-            stopLoss: currentVWAP * 0.99, // Tight stop below VWAP
-            target: currentPrice + (currentPrice - currentVWAP * 0.99) * 2 // 2R Target
-        };
+        setup = { entryZone: currentVWAP, stopLoss: currentVWAP * 0.99, target: currentPrice + (currentPrice - currentVWAP) * 2 };
     } else if (signal === 'GOLDEN SHORT') {
-        setup = {
-            entryZone: currentVWAP,
-            stopLoss: currentVWAP * 1.01,
-            target: currentPrice - (currentVWAP * 1.01 - currentPrice) * 2
-        };
+        setup = { entryZone: currentVWAP, stopLoss: currentVWAP * 1.01, target: currentPrice - (currentVWAP - currentPrice) * 2 };
     }
 
     return {
@@ -384,159 +327,44 @@ export function scoreGoldenSetup(indicators, dailyTrend, marketState) {
         name: 'The Golden Setup',
         type: 'Trend Following',
         description: 'High probability trade aligned with Daily Trend + VWAP interaction.',
-        score: Math.max(0, Math.min(score, 100)), // Clamp between 0-100
+        score: Math.max(0, Math.min(score, 100)),
         signal,
         color: score >= 80 ? 'emerald' : score >= 50 ? 'amber' : 'slate',
         criteria,
-        setup,
-        education: "The Golden Setup aligns the Daily Trend (Macro) with an Intraday Pullback to VWAP (Micro). We wait for a Volume Trigger to confirm institutions are stepping in."
-    };
-}
-// ============================================================================
-// VIX INTRADAY STRATEGIES
-// ============================================================================
-
-/**
- * VIX/Price Divergence (Intraday)
- * Checks for divergences between SPY price and VIX movement.
- * @param {Object} indicators - SPY indicators
- * @param {Array} vixHistory - VIX intraday history
- * @returns {Object} Strategy result
- */
-export function scoreVIXFlow(indicators, vixHistory) {
-    if (!vixHistory || vixHistory.length < 10) return { score: 0, signal: 'NEUTRAL' };
-
-    const priceHistory = indicators.priceHistory;
-    const vixCloses = vixHistory.map(d => d.close);
-
-    // Look at last 5 periods (approx 1 hour on 15m chart)
-    const priceTrend = priceHistory[priceHistory.length - 1] - priceHistory[priceHistory.length - 5];
-    const vixTrend = vixCloses[vixCloses.length - 1] - vixCloses[vixCloses.length - 5];
-
-    const criteria = [];
-    let score = 0;
-    let signal = 'NEUTRAL';
-
-    // 1. Bullish Divergence
-    if (priceTrend < 0 && vixTrend < 0) {
-        criteria.push({
-            name: 'Bullish Divergence',
-            value: 'YES',
-            met: true,
-            description: 'Price dropping but VIX is falling (No Fear)'
-        });
-        score += 70;
-        signal = 'BUY';
-    }
-
-    // 2. Bearish Divergence
-    if (priceTrend > 0 && vixTrend > 0) {
-        criteria.push({
-            name: 'Bearish Divergence',
-            value: 'YES',
-            met: true,
-            description: 'Price rising but VIX is rising (Fear increasing)'
-        });
-        score += 70;
-        signal = 'SELL';
-    }
-
-    // 3. VIX Crush
-    if (priceTrend > 0 && vixTrend < -0.5) {
-        criteria.push({
-            name: 'VIX Crush',
-            value: 'YES',
-            met: true,
-            description: 'Rally supported by falling VIX'
-        });
-        score += 50;
-        signal = 'BUY';
-    }
-
-    // 4. VIX Spike
-    if (priceTrend < 0 && vixTrend > 0.5) {
-        criteria.push({
-            name: 'VIX Spike',
-            value: 'YES',
-            met: true,
-            description: 'Sell-off supported by rising VIX'
-        });
-        score += 50;
-        signal = 'SELL';
-    }
-
-    return {
-        id: 'vix-flow',
-        name: 'VIX Flow Divergence',
-        type: 'Divergence',
-        description: 'Analyzes the correlation between Price and VIX.',
-        score,
-        signal,
-        color: score >= 60 ? 'emerald' : score >= 40 ? 'amber' : 'slate',
-        criteria,
-        education: 'Analyzes the correlation between Price and VIX. Divergences often precede reversals. A falling VIX during a price drop suggests a lack of fear (Bullish), while a rising VIX during a rally suggests hedging (Bearish).'
+        setup
     };
 }
 
 /**
  * Mean Reversion (Scalping)
- * Logic: Buy when price pierces Lower BB + RSI < 30 (Oversold)
- *        Sell when price pierces Upper BB + RSI > 70 (Overbought)
  */
 export function scoreMeanReversion(indicators) {
     const { priceHistory, rsi, bb } = indicators;
     const currentPrice = priceHistory[priceHistory.length - 1];
 
-    // Check if BB exists
-    if (!bb) {
-        return {
-            id: 'mean-reversion',
-            name: 'Mean Reversion Scalp',
-            score: 0,
-            signal: 'NEUTRAL',
-            criteria: [{ name: 'BB Data', met: false, description: 'Bollinger Bands data unavailable' }],
-            color: 'slate'
-        };
-    }
+    if (!bb) return { id: 'mean-reversion', score: 0, signal: 'NEUTRAL', criteria: [] };
 
     const criteria = [];
     let score = 0;
     let signal = 'NEUTRAL';
 
-    // 1. Bollinger Band Pierce
     const piercedLower = currentPrice < bb.lower;
     const piercedUpper = currentPrice > bb.upper;
-
-    if (piercedLower || piercedUpper) {
-        criteria.push({
-            name: 'Bollinger Band Pierce',
-            value: piercedLower ? 'LOWER' : 'UPPER',
-            met: true,
-            description: `Price pierced the ${piercedLower ? 'Lower' : 'Upper'} Band`
-        });
-        score += 40;
-    }
-
-    // 2. RSI Extreme
     const isOversold = rsi < 30;
     const isOverbought = rsi > 70;
 
+    if (piercedLower || piercedUpper) {
+        criteria.push({ name: 'BB Pierce', value: 'YES', met: true, description: 'Price pierced Bollinger Band' });
+        score += 40;
+    }
     if (isOversold || isOverbought) {
-        criteria.push({
-            name: 'RSI Extreme',
-            value: rsi.toFixed(1),
-            met: true,
-            description: isOversold ? 'Oversold (<30)' : 'Overbought (>70)'
-        });
+        criteria.push({ name: 'RSI Extreme', value: rsi.toFixed(1), met: true, description: 'RSI Overbought/Oversold' });
         score += 40;
     }
 
-    // Determine Signal
-    // Relaxed: Either BB pierce OR RSI extreme (not both required)
     if (piercedLower || isOversold) {
-        if (score >= 40) { // At least one strong signal
+        if (score >= 40) {
             signal = 'SCALP BUY';
-            // Bonus if BOTH conditions met
             if (piercedLower && isOversold) score += 20;
         }
     }
@@ -547,28 +375,16 @@ export function scoreMeanReversion(indicators) {
         }
     }
 
-    // Setup
     let setup = null;
-    if (signal === 'SCALP BUY') {
-        setup = {
-            entryZone: currentPrice,
-            stopLoss: currentPrice * 0.995, // Tight stop
-            target: bb.middle // Target mean (SMA20)
-        };
-    } else if (signal === 'SCALP SELL') {
-        setup = {
-            entryZone: currentPrice,
-            stopLoss: currentPrice * 1.005,
-            target: bb.middle
-        };
-    }
+    if (signal === 'SCALP BUY') setup = { entryZone: currentPrice, stopLoss: currentPrice * 0.995, target: bb.middle };
+    else if (signal === 'SCALP SELL') setup = { entryZone: currentPrice, stopLoss: currentPrice * 1.005, target: bb.middle };
 
     return {
         id: 'mean-reversion',
         name: 'Mean Reversion Scalp',
         type: 'Reversion',
         description: 'Scalping reversals from extreme overbought/oversold levels.',
-        score: Math.max(0, Math.min(score, 100)), // Clamp 0-100
+        score: Math.max(0, Math.min(score, 100)),
         signal,
         color: score >= 80 ? 'purple' : 'slate',
         criteria,
@@ -576,22 +392,7 @@ export function scoreMeanReversion(indicators) {
     };
 }
 
-// Helper to check for Lunch Chop (12:00 - 13:30 ET)
-function isLunchChop() {
-    try {
-        const now = new Date();
-        const etTime = new Date(now.toLocaleString("en-US", { timeZone: "America/New_York" }));
-        const hour = etTime.getHours();
-        const minute = etTime.getMinutes();
-
-        // 12:00 to 13:30 ET
-        if (hour === 12) return true;
-        if (hour === 13 && minute < 30) return true;
-        return false;
-    } catch (error) {
-        // Fallback: If timezone conversion fails, assume it's NOT lunch
-        // Better to trade than to miss opportunities
-        console.warn('Failed to determine ET timezone:', error.message);
-        return false;
-    }
+export function scoreVWAPBounce(indicators) {
+    // Keeping simplified version for legacy support or removal
+    return { id: 'vwap-bounce', score: 0, signal: 'NEUTRAL', criteria: [] };
 }

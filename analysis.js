@@ -436,3 +436,125 @@ export function calculateKeyLevels(historical) {
 
     return { ohlc, pivots, fibs };
 }
+
+// ============================================================================
+// INTRADAY ADVANCED INDICATORS
+// ============================================================================
+
+/**
+ * Calculate VWAP Bands (Standard Deviation)
+ * @param {Array} historical - Intraday candles
+ * @returns {Object} { vwap, upper1, lower1, upper2, lower2, upper3, lower3 }
+ */
+export function calculateVWAPBands(historical) {
+    if (!historical || historical.length === 0) return null;
+
+    let cumulativeTPV = 0;
+    let cumulativeVolume = 0;
+    let cumulativeTPV2 = 0; // For variance calculation
+
+    const bands = historical.map(d => {
+        const typicalPrice = (d.high + d.low + d.close) / 3;
+        const volume = d.volume;
+
+        cumulativeTPV += typicalPrice * volume;
+        cumulativeVolume += volume;
+        cumulativeTPV2 += (typicalPrice * typicalPrice) * volume;
+
+        const vwap = cumulativeVolume > 0 ? cumulativeTPV / cumulativeVolume : typicalPrice;
+
+        // Variance = (Sum(TP^2 * V) / Sum(V)) - VWAP^2
+        const variance = (cumulativeTPV2 / cumulativeVolume) - (vwap * vwap);
+        const stdDev = Math.sqrt(Math.max(0, variance));
+
+        return {
+            vwap,
+            upper1: vwap + stdDev,
+            lower1: vwap - stdDev,
+            upper2: vwap + (2 * stdDev),
+            lower2: vwap - (2 * stdDev),
+            upper3: vwap + (3 * stdDev),
+            lower3: vwap - (3 * stdDev)
+        };
+    });
+
+    return bands[bands.length - 1];
+}
+
+/**
+ * Calculate Intraday Volume Profile (VAH, VAL, POC)
+ * @param {Array} historical - Intraday candles
+ * @returns {Object} { vah, val, poc, totalVolume }
+ */
+export function calculateIntradayProfile(historical) {
+    if (!historical || historical.length === 0) return null;
+
+    // 1. Create Price Buckets
+    const prices = historical.map(c => c.close);
+    const minPrice = Math.min(...historical.map(c => c.low));
+    const maxPrice = Math.max(...historical.map(c => c.high));
+    const range = maxPrice - minPrice;
+
+    // Dynamic bucket size based on volatility (approx 0.1% of price)
+    const bucketSize = Math.max(0.01, (prices[prices.length - 1] * 0.001));
+    const buckets = {};
+
+    let totalVolume = 0;
+
+    historical.forEach(candle => {
+        const typicalPrice = (candle.high + candle.low + candle.close) / 3;
+        const bucketKey = Math.floor(typicalPrice / bucketSize) * bucketSize;
+
+        if (!buckets[bucketKey]) buckets[bucketKey] = 0;
+        buckets[bucketKey] += candle.volume;
+        totalVolume += candle.volume;
+    });
+
+    // 2. Find POC (Point of Control)
+    let poc = 0;
+    let maxVol = 0;
+    const sortedBuckets = Object.entries(buckets)
+        .map(([price, vol]) => ({ price: parseFloat(price), vol }))
+        .sort((a, b) => a.price - b.price);
+
+    sortedBuckets.forEach(b => {
+        if (b.vol > maxVol) {
+            maxVol = b.vol;
+            poc = b.price;
+        }
+    });
+
+    // 3. Calculate Value Area (70% of volume)
+    const targetVolume = totalVolume * 0.70;
+    let currentVolume = maxVol;
+    let pocIndex = sortedBuckets.findIndex(b => b.price === poc);
+    let upIndex = pocIndex;
+    let downIndex = pocIndex;
+
+    // Expand from POC until 70% reached
+    while (currentVolume < targetVolume) {
+        const upVol = (upIndex < sortedBuckets.length - 1) ? sortedBuckets[upIndex + 1].vol : 0;
+        const downVol = (downIndex > 0) ? sortedBuckets[downIndex - 1].vol : 0;
+
+        if (upVol > downVol) {
+            upIndex++;
+            currentVolume += upVol;
+        } else if (downVol > 0) {
+            downIndex--;
+            currentVolume += downVol;
+        } else if (upIndex < sortedBuckets.length - 1) {
+            // Force move if stuck at bottom
+            upIndex++;
+            currentVolume += upVol;
+        } else {
+            break; // No more data
+        }
+    }
+
+    return {
+        vah: sortedBuckets[upIndex].price,
+        val: sortedBuckets[downIndex].price,
+        poc,
+        totalVolume
+    };
+}

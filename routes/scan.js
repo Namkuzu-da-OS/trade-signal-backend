@@ -6,7 +6,6 @@ import {
     scoreOpeningRangeBreakout,
     scoreVWAPBounce,
     scoreGoldenSetup,
-    scoreVIXFlow,
     scoreMeanReversion
 } from '../strategies/intraday.js';
 import { scoreSwingPullback } from '../strategies/swing.js';
@@ -161,6 +160,21 @@ router.get('/', validateSymbol, validateInterval, async (req, res) => {
         const indicators = calculateIndicators(historical);
         const vp = calculateVolumeProfile(historical, 50);
 
+        // Intraday Advanced Indicators
+        let vwapBands = null;
+        let volumeProfile = null;
+        let sessionPhase = 'CLOSED';
+
+        if (interval === '15m' || interval === '1h') {
+            vwapBands = calculateVWAPBands(historical);
+            volumeProfile = calculateIntradayProfile(historical);
+            sessionPhase = sessionService.getSessionPhase();
+
+            // Attach to indicators object for strategies
+            indicators.vwapBands = vwapBands;
+            indicators.volumeProfile = volumeProfile;
+        }
+
         // Detect Market Regime
         const regimeResult = detectMarketRegime(indicators, { vix: vix.value });
         let marketRegime = regimeResult.regime;
@@ -180,9 +194,10 @@ router.get('/', validateSymbol, validateInterval, async (req, res) => {
         if (interval === '15m' || interval === '1h') {
             signals = [
                 scoreOpeningRangeBreakout(indicators, quote),
-                scoreVWAPBounce(indicators),
                 scoreGoldenSetup(indicators, dailyTrend, { gex: gexData.val }),
-                scoreMeanReversion(indicators) // New Strategy
+                scoreMeanReversion(indicators),
+                scoreVWAPReversion(indicators), // New
+                scoreValueAreaPlay(indicators)  // New
             ];
             if (['SPY', 'QQQ', 'IWM'].includes(symbol)) {
                 const vixData = await fetchVIX('15m');
@@ -191,7 +206,7 @@ router.get('/', validateSymbol, validateInterval, async (req, res) => {
         } else {
             // Daily/Swing Strategies
             signals = [
-                scoreSwingPullback(indicators, { vix: vix.value }), // New Strategy
+                scoreSwingPullback(indicators, { vix: vix.value }),
                 scoreInstitutionalTrend(indicators, vix),
                 scoreVolatilitySqueeze(indicators, vix),
                 scorePanicReversion(indicators, vix),
@@ -236,6 +251,7 @@ router.get('/', validateSymbol, validateInterval, async (req, res) => {
                 vixChange: vix.changePercent,
                 marketRegime,
                 regimeColor,
+                sessionPhase, // New
                 isMarketOpen: quote.marketState === 'REGULAR',
                 gex: gexData.val,
                 zeroGamma: gexData.zeroGammaLevel
@@ -251,8 +267,10 @@ router.get('/', validateSymbol, validateInterval, async (req, res) => {
                 upperBand: indicators.bbUpperHistory,
                 lowerBand: indicators.bbLowerHistory,
                 vwap: indicators.vwapHistory,
+                vwapBands: vwapBands, // New
                 volumes: historical.map(h => h.volume),
                 volumeProfile: vp.profile,
+                intradayProfile: volumeProfile, // New
                 poc: vp.poc
             },
             indicators: {
