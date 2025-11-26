@@ -8,16 +8,15 @@ A powerful, full-stack trading signal engine designed to identify high-probabili
 The platform supports two distinct trading styles, toggled via the dashboard sidebar:
 
 *   **📈 Swing Mode (Daily/Weekly)**
-    *   **Focus:** Multi-day to multi-week holds.
-    *   **Timeframes:** Daily (`1d`), Weekly (`1wk`).
-    *   **Strategies:** Trend Following, Volatility Squeeze, Panic Reversion.
-    *   **Goal:** Capture major market moves and institutional positioning.
-
-*   **⚡ Intraday Mode (15m/1h)**
-    *   **Focus:** Same-day execution.
-    *   **Timeframes:** 15-Minute (`15m`), Hourly (`1h`).
-    *   **Strategies:** Opening Range Breakout (ORB), VWAP Bounce.
-    *   **Goal:** Capitalize on session volatility and intraday key levels.
+- **🎯 Live Signals Dashboard:** Real-time "Command Center" with Heatmap view, Multi-Timeframe Matrix, and Market Ticker.
+- **🤖 AI-Powered Analysis:** Integrated Gemini AI provides "Second Opinions" on every trade signal.
+- **⚡ Institutional Strategies:**
+  - **Golden Setup:** Multi-timeframe trend alignment.
+  - **VIX Flow:** Volatility divergence detection.
+  - **Market Structure:** Key level rejection and breakouts.
+- **📊 Professional Data:** Real-time scanning of SPY, QQQ, BTC, and custom watchlists.
+- **🔔 Smart Alerts:** Discord integration for high-probability setups.
+- **📉 Backtesting Engine:** Validate strategies against historical data.
 
 ### 2. Strategy Engine
 The backend (`server.js` & `strategies/`) evaluates real-time market data against defined algorithmic criteria.

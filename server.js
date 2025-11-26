@@ -17,6 +17,7 @@ import automationRoutes from './routes/automation.js';
 import journalRoutes from './routes/journal.js';
 import portfolioRoutes from './routes/portfolio.js';
 import healthRoutes from './routes/health.js';
+import backtestRoutes from './routes/backtest.js';
 
 const app = express();
 const PORT = process.env.PORT || CONFIG.DEFAULT_PORT;
@@ -79,6 +80,7 @@ app.use('/api/scan', scanRoutes);
 app.use('/api', automationRoutes); // /api/auto, /api/alerts, /api/signals
 app.use('/api/journal', journalRoutes);
 app.use('/api', portfolioRoutes); // /api/portfolio, /api/trade, /api/watchlist
+app.use('/api/backtest', backtestRoutes);
 app.use('/api', healthRoutes); // /api/health, /api/health/cache
 
 // ============================================================================

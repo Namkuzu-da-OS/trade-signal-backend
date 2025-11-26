@@ -183,8 +183,15 @@ router.post('/signals/live/:symbol/analyze', validateSymbol, async (req, res) =>
                 target: signal.target_price
             };
 
-            // 3. Generate Analysis
-            const aiResult = await generateAISentiment(symbol, indicators, strategy, marketState, setup);
+            // Enhanced context with multi-timeframe signals
+            const timeframeSignals = {
+                tf15m: signal.signal_15m || 'N/A',
+                tf1h: signal.signal_1h || 'N/A',
+                tf1d: signal.signal_1d || 'N/A'
+            };
+
+            // 3. Generate Analysis with enhanced context
+            const aiResult = await generateAISentiment(symbol, indicators, strategy, marketState, setup, timeframeSignals);
             const analysis = aiResult.combined_analysis;
 
             // 4. Save to DB
