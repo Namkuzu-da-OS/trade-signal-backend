@@ -1,3 +1,5 @@
+import CONFIG from '../config.js';
+
 /**
  * Opening Range Breakout (ORB)
  * Timeframes: 15min, 1hr
@@ -114,23 +116,23 @@ export function scoreOpeningRangeBreakout(indicators, marketState) {
     if (brokeBelow) score += 40;
 
     // 2. Volume Confirmation (using rvol from last candle)
-    const volConfirm = indicators.rvol > 1.2;
+    const volConfirm = indicators.rvol > CONFIG.ORB_VOLUME_CONFIRMATION;
     criteria.push({
         name: 'Volume Confirmation',
         value: indicators.rvol.toFixed(2) + 'x',
         met: volConfirm,
-        description: `Relative volume > 1.2`
+        description: `Relative volume > ${CONFIG.ORB_VOLUME_CONFIRMATION}`
     });
     if (volConfirm) score += 20;
 
     // 3. Range Quality
     const rangePercent = (orRange / orbLow) * 100;
-    const goodRange = rangePercent > 0.2; // At least 0.2% range
+    const goodRange = rangePercent > (CONFIG.ORB_RANGE_MIN_PERCENT * 100); // Minimum range quality
     criteria.push({
         name: 'Range Quality',
         value: rangePercent.toFixed(2) + '%',
         met: goodRange,
-        description: `ORB range > 0.2%`
+        description: `ORB range > ${(CONFIG.ORB_RANGE_MIN_PERCENT * 100).toFixed(1)}%`
     });
     if (goodRange) score += 10;
 
@@ -187,22 +189,22 @@ export function scoreVWAPBounce(indicators) {
 
     // 1. Proximity to VWAP
     const dist = Math.abs(currentPrice - currentVWAP) / currentVWAP;
-    const nearVWAP = dist < 0.005; // Within 0.5%
+    const nearVWAP = dist < CONFIG.VWAP_PROXIMITY_THRESHOLD;
     criteria.push({
         name: 'Near VWAP',
         value: (dist * 100).toFixed(2) + '%',
         met: nearVWAP,
-        description: `Price is within 0.5% of VWAP`
+        description: `Price is within ${(CONFIG.VWAP_PROXIMITY_THRESHOLD * 100).toFixed(1)}% of VWAP`
     });
     if (nearVWAP) score += 30;
 
     // 2. Volume Spike
-    const volSpike = rvol > 1.5;
+    const volSpike = rvol > CONFIG.VOLUME_SPIKE;
     criteria.push({
         name: 'Volume Spike',
         value: rvol.toFixed(2) + 'x',
         met: volSpike,
-        description: `Volume is spiking > 1.5x average`
+        description: `Volume is spiking > ${CONFIG.VOLUME_SPIKE}x average`
     });
     if (volSpike) score += 20;
 
@@ -282,22 +284,22 @@ export function scoreGoldenSetup(indicators, dailyTrend, marketState) {
 
     // 2. Key Level Interaction (VWAP)
     const distToVWAP = Math.abs(currentPrice - currentVWAP) / currentVWAP;
-    const nearVWAP = distToVWAP < 0.008; // Within 0.8%
+    const nearVWAP = distToVWAP < CONFIG.VWAP_PROXIMITY_GOLDEN;
     criteria.push({
         name: 'VWAP Interaction',
         value: (distToVWAP * 100).toFixed(2) + '%',
         met: nearVWAP,
-        description: 'Price is testing VWAP'
+        description: `Price is within ${(CONFIG.VWAP_PROXIMITY_GOLDEN * 100).toFixed(1)}% of VWAP`
     });
     if (nearVWAP) score += 20;
 
     // 3. Volume Trigger
-    const volTrigger = rvol > 1.5;
+    const volTrigger = rvol > CONFIG.VOLUME_CONFIRMATION;
     criteria.push({
         name: 'Volume Trigger',
         value: rvol.toFixed(2) + 'x',
         met: volTrigger,
-        description: 'RVOL > 1.5 indicates institutional activity'
+        description: `RVOL > ${CONFIG.VOLUME_CONFIRMATION} indicates institutional activity`
     });
     if (volTrigger) score += 20;
 

@@ -1,5 +1,7 @@
 import { SMA, RSI, BollingerBands, ADX, Stochastic, PSAR, OBV, ATR, VWAP } from 'technicalindicators';
 import { calculateKellySize } from './tradeManager.js';
+import { calculateIndicators } from './analysis.js'; // Import from single source of truth
+import CONFIG from './config.js';
 
 // ============================================================================
 // MATH HELPERS (Black-Scholes for GEX)
@@ -22,105 +24,8 @@ function calculateGamma(S, K, T, r, sigma) {
     return stdNormPDF(d1) / (S * sigma * Math.sqrt(T));
 }
 
-// ============================================================================
-// HELPER FUNCTIONS
-// ============================================================================
-
-function padArray(arr, totalLength) {
-    const padding = new Array(totalLength - arr.length).fill(null);
-    return [...padding, ...arr];
-}
-
-function calculateVWAP(historical) {
-    let cumulativeTPV = 0;
-    let cumulativeVolume = 0;
-
-    return historical.map(d => {
-        const typicalPrice = (d.high + d.low + d.close) / 3;
-        cumulativeTPV += typicalPrice * d.volume;
-        cumulativeVolume += d.volume;
-        return cumulativeVolume > 0 ? cumulativeTPV / cumulativeVolume : typicalPrice;
-    });
-}
-
-function calculateRVOL(volumes, period = 10) {
-    if (volumes.length < period + 1) return 1;
-
-    const avgVolume = volumes.slice(-period - 1, -1).reduce((a, b) => a + b, 0) / period;
-    const currentVolume = volumes[volumes.length - 1];
-
-    return avgVolume > 0 ? currentVolume / avgVolume : 1;
-}
-
-// ============================================================================
-// TECHNICAL INDICATOR CALCULATIONS
-// ============================================================================
-
-export function calculateIndicators(historical) {
-    const closes = historical.map(d => d.close);
-    const highs = historical.map(d => d.high);
-    const lows = historical.map(d => d.low);
-    const volumes = historical.map(d => d.volume);
-
-    // Simple Moving Averages
-    const sma20 = SMA.calculate({ period: 20, values: closes });
-    const sma50 = SMA.calculate({ period: 50, values: closes });
-    const sma200 = SMA.calculate({ period: 200, values: closes });
-
-    // RSI (14-period)
-    const rsi = RSI.calculate({ period: 14, values: closes });
-
-    // Bollinger Bands (20-period, 2 std dev)
-    const bb = BollingerBands.calculate({
-        period: 20,
-        values: closes,
-        stdDev: 2
-    });
-
-    // ADX (14-period)
-    const adx = ADX.calculate({
-        period: 14,
-        high: highs,
-        low: lows,
-        close: closes
-    });
-
-    // VWAP Approximation
-    const vwap = calculateVWAP(historical);
-
-    // Relative Volume
-    const rvol = calculateRVOL(volumes);
-
-    // Bollinger Band Width
-    const bbWidth = bb.length > 0
-        ? (bb[bb.length - 1].upper - bb[bb.length - 1].lower) / bb[bb.length - 1].middle
-        : 0;
-
-    return {
-        currentPrice: closes[closes.length - 1],
-        sma20: sma20[sma20.length - 1],
-        sma50: sma50[sma50.length - 1],
-        sma200: sma200[sma200.length - 1],
-        rsi: rsi[rsi.length - 1],
-        bb: bb[bb.length - 1],
-        bbWidth,
-        adx: adx[adx.length - 1]?.adx || 0,
-        vwap: vwap[vwap.length - 1],
-        rvol,
-        // Arrays for charting (last 50 days)
-        // Arrays for charting (last 50 days)
-        priceHistory: closes.slice(-50),
-        highHistory: highs.slice(-50),
-        lowHistory: lows.slice(-50),
-        volumeHistory: volumes.slice(-50),
-        sma20History: padArray(sma20, closes.length).slice(-50),
-        sma200History: padArray(sma200, closes.length).slice(-50),
-        bbUpperHistory: padArray(bb.map(b => b.upper), closes.length).slice(-50),
-        bbLowerHistory: padArray(bb.map(b => b.lower), closes.length).slice(-50),
-        vwapHistory: vwap.slice(-50),
-        dates: historical.slice(-50).map(d => d.date.toISOString().split('T')[0])
-    };
-}
+// Note: calculateIndicators() is now imported from analysis.js
+// This eliminates ~100 lines of duplicate code
 
 export function calculateVolumeProfile(historical, period = 50) {
     const slice = historical.slice(-period);
@@ -303,10 +208,10 @@ export function scoreInstitutionalTrend(indicators, vix) {
     if (aboveVWAP) score += 34;
 
     // Criterion 3: RSI between 50-70 - Strong but not overbought
-    const rsiBullish = indicators.rsi >= 50 && indicators.rsi <= 70;
+    const rsiBullish = indicators.rsi >= CONFIG.RSI_BULLISH_MIN && indicators.rsi <= CONFIG.RSI_BULLISH_MAX;
     criteria.push({
         name: 'RSI Bullish Zone',
-        description: 'Momentum strong but not overbought (50-70)',
+        description: `Momentum strong but not overbought (${CONFIG.RSI_BULLISH_MIN}-${CONFIG.RSI_BULLISH_MAX})`,
         met: rsiBullish,
         value: indicators.rsi?.toFixed(1) || 'N/A'
     });
@@ -347,31 +252,31 @@ export function scoreVolatilitySqueeze(indicators, vix) {
     const criteria = [];
     let score = 0;
 
-    // Criterion 1: Bollinger Band Width < 0.10 - Tight bands
-    const bandsTight = indicators.bbWidth < 0.10;
+    // Criterion 1: Bollinger Band Width < threshold - Tight bands
+    const bandsTight = indicators.bbWidth < CONFIG.BB_SQUEEZE_THRESHOLD;
     criteria.push({
         name: 'Bands Contracting',
-        description: 'Bollinger Band Width < 10% (squeeze forming)',
+        description: `Bollinger Band Width < ${CONFIG.BB_SQUEEZE_THRESHOLD * 100}% (squeeze forming)`,
         met: bandsTight,
         value: `${(indicators.bbWidth * 100).toFixed(1)}%`
     });
     if (bandsTight) score += 34;
 
-    // Criterion 2: ADX > 20 - Latent energy exists
-    const adxReady = indicators.adx > 20;
+    // Criterion 2: ADX > threshold - Latent energy exists
+    const adxReady = indicators.adx > CONFIG.ADX_ENERGY_THRESHOLD;
     criteria.push({
         name: 'ADX Energy',
-        description: 'ADX > 20 indicates directional energy building',
+        description: `ADX > ${CONFIG.ADX_ENERGY_THRESHOLD} indicates directional energy building`,
         met: adxReady,
         value: indicators.adx?.toFixed(1) || 'N/A'
     });
     if (adxReady) score += 33;
 
-    // Criterion 3: RVOL > 1.5 - Volume confirming
-    const volumeSpike = indicators.rvol > 1.5;
+    // Criterion 3: RVOL > threshold - Volume confirming
+    const volumeSpike = indicators.rvol > CONFIG.VOLUME_CONFIRMATION;
     criteria.push({
         name: 'Volume Surge',
-        description: 'Relative Volume > 150% of 10-day average',
+        description: `Relative Volume > ${CONFIG.VOLUME_CONFIRMATION * 100}% of 10-day average`,
         met: volumeSpike,
         value: `${(indicators.rvol * 100).toFixed(0)}%`
     });
@@ -412,21 +317,21 @@ export function scorePanicReversion(indicators, vix) {
     const criteria = [];
     let score = 0;
 
-    // Criterion 1: VIX > 25 - Market Fear
-    const marketFear = vix.value > 25;
+    // Criterion 1: VIX > threshold - Market Fear
+    const marketFear = vix.value > CONFIG.VIX_HIGH_FEAR;
     criteria.push({
         name: 'Market Fear',
-        description: 'VIX > 25 indicates elevated fear',
+        description: `VIX > ${CONFIG.VIX_HIGH_FEAR} indicates elevated fear`,
         met: marketFear,
         value: vix.value?.toFixed(2) || 'N/A'
     });
     if (marketFear) score += 34;
 
-    // Criterion 2: RSI < 30 - Oversold
-    const oversold = indicators.rsi < 30;
+    // Criterion 2: RSI < threshold - Oversold
+    const oversold = indicators.rsi < CONFIG.RSI_OVERSOLD;
     criteria.push({
         name: 'RSI Oversold',
-        description: 'RSI < 30 indicates oversold conditions',
+        description: `RSI < ${CONFIG.RSI_OVERSOLD} indicates oversold conditions`,
         met: oversold,
         value: indicators.rsi?.toFixed(1) || 'N/A'
     });
@@ -788,9 +693,10 @@ export function scoreVIXReversion(vixHistory) {
     const currentVIX = closes[closes.length - 1];
 
     // Calculate Indicators
-    const sma10 = calculateSMA(closes, 10);
+    // Calculate Indicators
+    const sma10 = SMA.calculate({ period: 10, values: closes });
     const currentSMA10 = sma10[sma10.length - 1];
-    const rsi5 = calculateRSI(closes, 5);
+    const rsi5 = RSI.calculate({ period: 5, values: closes });
     const currentRSI = rsi5[rsi5.length - 1];
 
     const criteria = [];

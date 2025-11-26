@@ -1,3 +1,7 @@
 node_modules
 .env
 *.log
+database.sqlite
+backups/
+.DS_Store
+test_*.js

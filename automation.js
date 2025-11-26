@@ -1,16 +1,26 @@
-import { fetchDataForInterval } from './analysis.js';
+import { fetchDataForInterval, fetchMarketData, calculateIndicators } from './analysis.js';
 import {
     scoreInstitutionalTrend,
     scoreVolatilitySqueeze,
     scorePanicReversion,
-    scoreVIXReversion
+    scoreVIXReversion,
+    scoreEMAMomentumConfluence,
+    scoreVolatilityBreakoutEnhanced,
+    scoreVWAPMeanReversion,
+    scoreGammaExposure
 } from './strategies.js';
 import {
     scoreOpeningRangeBreakout,
     scoreVWAPBounce,
+    scoreGoldenSetup,
     scoreVIXFlow
 } from './strategies/intraday.js';
 import yahooFinance from 'yahoo-finance2';
+import CONFIG from './config.js';
+import logger from './utils/logger.js';
+
+// Concurrency control for parallel processing
+const CONCURRENCY_LIMIT = 5; // Process 5 symbols at a time
 
 /**
  * AutoTrader Class
@@ -26,8 +36,41 @@ export class AutoTrader {
         this.aiGenerator = aiGenerator;
         this.isRunning = false;
         this.intervalId = null;
-        this.scanInterval = '15m'; // Default to 15m for intraday
+        this.intervalMinutes = 15; // Store interval for status endpoint
         this.minScore = 80; // Minimum score to trigger a trade
+        this.lastScanTime = null; // Track last scan time
+        this.watchlistCount = 0; // Track watchlist size
+        this.activityLog = []; // Store recent activity
+        this.maxLogSize = 100; // Keep last 100 log entries
+    }
+
+    /**
+     * Log activity message
+     * @param {string} type - 'info', 'success', 'warning', 'error'
+     * @param {string} message 
+     */
+    log(type, message) {
+        const entry = {
+            timestamp: new Date().toISOString(),
+            type,
+            message
+        };
+
+        this.activityLog.unshift(entry); // Add to beginning
+
+        // Keep only the most recent entries
+        if (this.activityLog.length > this.maxLogSize) {
+            this.activityLog = this.activityLog.slice(0, this.maxLogSize);
+        }
+
+        // Also log to console with prefix
+        const prefix = `[AUTO]`;
+        switch (type) {
+            case 'success': console.log(`${prefix} ✓ ${message}`); break;
+            case 'warning': console.warn(`${prefix} ⚠ ${message}`); break;
+            case 'error': console.error(`${prefix} ✗ ${message}`); break;
+            default: console.log(`${prefix} ${message}`);
+        }
     }
 
     /**
@@ -36,12 +79,13 @@ export class AutoTrader {
      */
     start(intervalMinutes = 15) {
         if (this.isRunning) {
-            console.log('[AUTO] AutoTrader is already running.');
-            return;
+            this.log('warning', 'Scanner is already running');
+            return { status: 'already_running' };
         }
 
-        console.log(`[AUTO] Starting AutoTrader (Interval: ${intervalMinutes}m)...`);
+        this.log('success', `Starting Multi-Timeframe Scanner (Interval: ${intervalMinutes}m)`);
         this.isRunning = true;
+        this.intervalMinutes = intervalMinutes;
 
         // Run immediately
         this.runCycle();
@@ -50,6 +94,8 @@ export class AutoTrader {
         this.intervalId = setInterval(() => {
             this.runCycle();
         }, intervalMinutes * 60 * 1000);
+
+        return { status: 'started', intervalMinutes };
     }
 
     /**
@@ -58,7 +104,7 @@ export class AutoTrader {
     stop() {
         if (!this.isRunning) return;
 
-        console.log('[AUTO] Stopping AutoTrader...');
+        this.log('info', 'Stopping Multi-Timeframe Scanner');
         this.isRunning = false;
         if (this.intervalId) {
             clearInterval(this.intervalId);
@@ -72,108 +118,314 @@ export class AutoTrader {
     async runCycle() {
         if (!this.isRunning) return;
 
-        console.log(`[AUTO] Starting scan cycle at ${new Date().toISOString()}`);
+        this.lastScanTime = new Date().toISOString();
+        this.log('info', `Starting scan cycle at ${new Date().toLocaleTimeString()}`);
 
         try {
             // 1. Get Watchlist
             const symbols = await this.getWatchlist();
+            this.watchlistCount = symbols.length;
+
             if (symbols.length === 0) {
-                console.log('[AUTO] Watchlist empty. Skipping cycle.');
+                this.log('warning', 'Watchlist is empty - add symbols to begin scanning');
                 return;
             }
 
-            console.log(`[AUTO] Scanning ${symbols.length} symbols: ${symbols.join(', ')}`);
+            this.log('info', `Scanning ${symbols.length} symbols across ALL timeframes: ${symbols.join(', ')}`);
 
-            // 2. Scan each symbol
-            for (const symbol of symbols) {
-                await this.processSymbol(symbol);
+            // 2. Manage Open Positions (Exit Logic)
+            await this.managePositions();
+
+            // 3. Scan symbols in PARALLEL batches (5 at a time)
+            const startTime = Date.now();
+            let processedCount = 0;
+
+            for (let i = 0; i < symbols.length; i += CONCURRENCY_LIMIT) {
+                const batch = symbols.slice(i, i + CONCURRENCY_LIMIT);
+
+                // Process batch in parallel
+                const results = await Promise.allSettled(
+                    batch.map(symbol => this.processSymbol(symbol))
+                );
+
+                // Count successful processes
+                processedCount += results.filter(r => r.status === 'fulfilled').length;
+
+                // Log batch completion
+                const batchNum = Math.floor(i / CONCURRENCY_LIMIT) + 1;
+                const totalBatches = Math.ceil(symbols.length / CONCURRENCY_LIMIT);
+                logger.debug(`Batch ${batchNum}/${totalBatches} complete (${batch.length} symbols)`);
             }
 
-            console.log('[AUTO] Cycle completed.');
+            const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+            this.log('success', `Scan cycle completed - processed ${processedCount}/${symbols.length} symbols in ${elapsed}s`);
 
         } catch (error) {
-            console.error('[AUTO] Error in runCycle:', error.message);
+            this.log('error', `Scan cycle failed: ${error.message}`);
         }
     }
 
     /**
-     * Process a single symbol
+     * Process a single symbol across ALL timeframes
      * @param {string} symbol 
      */
     async processSymbol(symbol) {
         try {
-            // Fetch Data
-            const historical = await fetchDataForInterval(symbol, this.scanInterval);
-            if (!historical || historical.length < 50) {
-                console.warn(`[AUTO] Insufficient data for ${symbol}`);
-                return;
-            }
+            this.log('info', `→ Processing ${symbol} (scanning 15m, 1h, 1d)`);
 
-            // Calculate Indicators
-            const indicators = calculateIndicators(historical);
+            // Scan all 3 timeframes in parallel
+            const [signals15m, signals1h, signals1d] = await Promise.all([
+                this.scanTimeframe(symbol, '15m'),
+                this.scanTimeframe(symbol, '1h'),
+                this.scanTimeframe(symbol, '1d')
+            ]);
 
-            // Get Quote (Current Price)
-            const last = historical[historical.length - 1];
-            const quote = {
-                regularMarketPrice: last.close,
-                regularMarketChange: last.close - historical[historical.length - 2].close,
-                regularMarketChangePercent: ((last.close - historical[historical.length - 2].close) / historical[historical.length - 2].close) * 100
-            };
+            // Aggregate signals
+            const aggregated = this.aggregateSignals({
+                '15m': signals15m,
+                '1h': signals1h,
+                '1d': signals1d
+            });
 
-            // Calculate Daily Trend (MTF)
-            // We need daily data for this.
-            const dailyData = await fetchDataForInterval(symbol, '1d');
-            let dailyTrend = { bullish: false, bearish: false };
-            if (dailyData && dailyData.length > 20) {
-                const dailyIndicators = calculateIndicators(dailyData);
-                const lastPrice = dailyData[dailyData.length - 1].close;
-                const sma20 = dailyIndicators.sma20History[dailyIndicators.sma20History.length - 1];
-                dailyTrend.bullish = lastPrice > sma20;
-                dailyTrend.bearish = lastPrice < sma20;
-            }
-            // 2. Run Strategies
-            const strategies = [];
+            // Store in live_signals table
+            await this.storeLiveSignal(symbol, aggregated);
 
-            // Standard Strategies
-            strategies.push(scoreInstitutionalTrend(indicators));
-            strategies.push(scoreVolatilitySqueeze(indicators));
-            strategies.push(scorePanicReversion(indicators));
+            // Log result
+            const logType = aggregated.final_score >= 70 ? 'success' : 'info';
+            this.log(logType, `${symbol}: ${aggregated.final_signal} (${aggregated.final_score}%)`);
 
-            // Intraday Strategies (if interval is short)
-            if (this.scanInterval === '15m' || this.scanInterval === '1h') {
-                strategies.push(scoreOpeningRangeBreakout(indicators, marketState));
-                strategies.push(scoreVWAPBounce(indicators));
-            }
-
-            // SPECIAL: VIX Strategies (Only for SPY/Indices)
-            if (['SPY', 'QQQ', 'IWM'].includes(symbol)) {
-                const vixData = await fetchVIX(this.scanInterval); // Fetch full history
-
-                // Swing
-                strategies.push(scoreVIXReversion(vixData.historical));
-
-                // Intraday
-                if (this.scanInterval === '15m') {
-                    strategies.push(scoreVIXFlow(indicators, vixData.historical));
-                }
-            }
-
-            // 3. Evaluate & Execute
-            for (const strategy of strategies) {
-                if (strategy.score >= this.minScore) {
-                    console.log(`[AUTO] Signal: ${symbol} - ${strategy.name} (${strategy.score}%)`);
-
-                    // Log to Database (Alerts Table)
-                    await this.logAlert(symbol, strategy.name, strategy.score, strategy.signal);
-
-                    // Execute Trade (Paper)
-                    await this.executeTradeLogic(symbol, strategy, marketState.price);
-                }
+            // Optional: Execute trade if STRONG BUY
+            if (aggregated.final_signal === 'STRONG BUY' && aggregated.final_score >= 90) {
+                this.log('success', `🎯 STRONG BUY detected for ${symbol}!`);
+                // Uncomment to enable auto-trading:
+                // await this.executeTradeLogic(symbol, aggregated, aggregated.entry_price);
             }
 
         } catch (error) {
-            console.error(`Error processing ${symbol}:`, error.message);
+            this.log('error', `Failed processing ${symbol}: ${error.message}`);
         }
+    }
+
+    /**
+     * Scan a single timeframe for a symbol
+     * @param {string} symbol 
+     * @param {string} interval - '15m', '1h', or '1d'
+     * @returns {Promise<Array>} Array of strategy signals
+     */
+    async scanTimeframe(symbol, interval) {
+        try {
+            // Fetch historical data
+            const historical = await fetchDataForInterval(symbol, interval);
+
+            if (!historical || historical.length < 50) {
+                return [];
+            }
+
+            // Calculate indicators
+            const indicators = calculateIndicators(historical);
+
+            // Get current price (quote)
+            const last = historical[historical.length - 1];
+            const prev = historical[historical.length - 2];
+            const quote = {
+                regularMarketPrice: last.close,
+                regularMarketChange: last.close - prev.close,
+                regularMarketChangePercent: ((last.close - prev.close) / prev.close) * 100
+            };
+
+            // Calculate daily trend if needed for Golden Setup (intraday only)
+            let dailyTrend = { bullish: false, bearish: false };
+            if (interval === '15m' || interval === '1h') {
+                try {
+                    const dailyData = await fetchDataForInterval(symbol, '1d');
+                    if (dailyData && dailyData.length > 20) {
+                        const dailyIndicators = calculateIndicators(dailyData);
+                        const lastPrice = dailyData[dailyData.length - 1].close;
+                        const sma20 = dailyIndicators.sma20History[dailyIndicators.sma20History.length - 1];
+                        dailyTrend.bullish = lastPrice > sma20;
+                        dailyTrend.bearish = lastPrice < sma20;
+                    }
+                } catch (err) {
+                    // Daily trend fetch failed, continue without it
+                }
+            }
+
+            // Run strategies based on timeframe
+            const strategies = [];
+            const vix = { value: 20 }; // Mock VIX for simplicity
+
+            if (interval === '15m' || interval === '1h') {
+                // Intraday strategies
+                strategies.push(scoreOpeningRangeBreakout(indicators, quote));
+                strategies.push(scoreVWAPBounce(indicators));
+                strategies.push(scoreGoldenSetup(indicators, dailyTrend, { gex: 0 }));
+            } else {
+                // Swing strategies (1d)
+                strategies.push(scoreInstitutionalTrend(indicators, vix));
+                strategies.push(scoreVolatilitySqueeze(indicators, vix));
+                strategies.push(scorePanicReversion(indicators, vix));
+                strategies.push(scoreEMAMomentumConfluence(indicators, vix));
+                strategies.push(scoreVolatilityBreakoutEnhanced(indicators, vix));
+                strategies.push(scoreVWAPMeanReversion(indicators, vix));
+            }
+
+            // Filter and sort by score
+            return strategies
+                .filter(s => s && s.score > 0)
+                .sort((a, b) => b.score - a.score);
+
+        } catch (error) {
+            console.error(`[AUTO] Error scanning ${interval} for ${symbol}:`, error.message);
+            return [];
+        }
+    }
+
+    /**
+     * Get the best signal from an array of strategies
+     * @param {Array} strategies 
+     * @returns {Object} Best strategy or default
+     */
+    getBestSignal(strategies) {
+        if (!strategies || strategies.length === 0) {
+            return {
+                name: 'No Signal',
+                signal: 'NEUTRAL',
+                score: 0,
+                setup: { entryZone: null, stopLoss: null, target: null }
+            };
+        }
+        return strategies[0]; // Already sorted by score
+    }
+
+    /**
+     * Aggregate signals from multiple timeframes
+     * @param {Object} timeframeSignals - { '15m': [...], '1h': [...], '1d': [...] }
+     * @returns {Object} Aggregated signal data
+     */
+    aggregateSignals(timeframeSignals) {
+        const best15m = this.getBestSignal(timeframeSignals['15m']);
+        const best1h = this.getBestSignal(timeframeSignals['1h']);
+        const best1d = this.getBestSignal(timeframeSignals['1d']);
+
+        // Weighted score: 1d (50%), 1h (30%), 15m (20%)
+        const finalScore = Math.round(
+            (best1d.score * 0.5) +
+            (best1h.score * 0.3) +
+            (best15m.score * 0.2)
+        );
+
+        // Count bullish signals
+        const isBullish = (sig) => sig && (
+            sig.includes('BUY') ||
+            sig.includes('LONG') ||
+            sig === 'BREAKOUT ALERT'
+        );
+
+        const bullishCount = [best15m.signal, best1h.signal, best1d.signal]
+            .filter(isBullish).length;
+
+        // Determine final signal
+        let finalSignal = 'HOLD';
+        if (bullishCount >= 3 && finalScore >= 85) {
+            finalSignal = 'STRONG BUY';
+        } else if (bullishCount >= 2 && finalScore >= 70) {
+            finalSignal = 'BUY';
+        } else if (finalScore >= 40 && bullishCount >= 1) {
+            finalSignal = 'WATCH';
+        }
+
+        // Conservative stop loss (widest)
+        const stops = [
+            best15m.setup?.stopLoss,
+            best1h.setup?.stopLoss,
+            best1d.setup?.stopLoss
+        ].filter(s => s && s > 0);
+
+        const stopLoss = stops.length > 0 ? Math.min(...stops) : null;
+
+        // Average target
+        const targets = [
+            best15m.setup?.target,
+            best1h.setup?.target,
+            best1d.setup?.target
+        ].filter(t => t && t > 0);
+
+        const targetPrice = targets.length > 0
+            ? targets.reduce((a, b) => a + b, 0) / targets.length
+            : null;
+
+        // Entry price from shortest timeframe
+        const entryPrice = best15m.setup?.entryZone ||
+            best1h.setup?.entryZone ||
+            best1d.setup?.entryZone;
+
+        return {
+            final_signal: finalSignal,
+            final_score: finalScore,
+            entry_price: entryPrice,
+            stop_loss: stopLoss,
+            target_price: targetPrice,
+
+            signal_15m: best15m.signal || 'NEUTRAL',
+            score_15m: best15m.score || 0,
+            top_strategy_15m: best15m.name || 'None',
+
+            signal_1h: best1h.signal || 'NEUTRAL',
+            score_1h: best1h.score || 0,
+            top_strategy_1h: best1h.name || 'None',
+
+            signal_1d: best1d.signal || 'NEUTRAL',
+            score_1d: best1d.score || 0,
+            top_strategy_1d: best1d.name || 'None',
+
+            scan_timestamp: new Date().toISOString()
+        };
+    }
+
+    /**
+     * Store aggregated signal in database
+     * @param {string} symbol 
+     * @param {Object} aggregated 
+     */
+    storeLiveSignal(symbol, aggregated) {
+        return new Promise((resolve, reject) => {
+            const query = `
+                INSERT OR REPLACE INTO live_signals (
+                    symbol, final_signal, final_score, entry_price, stop_loss, target_price,
+                    signal_15m, score_15m, top_strategy_15m,
+                    signal_1h, score_1h, top_strategy_1h,
+                    signal_1d, score_1d, top_strategy_1d,
+                    scan_timestamp, last_updated
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            `;
+
+            this.db.run(query, [
+                symbol,
+                aggregated.final_signal,
+                aggregated.final_score,
+                aggregated.entry_price,
+                aggregated.stop_loss,
+                aggregated.target_price,
+                aggregated.signal_15m,
+                aggregated.score_15m,
+                aggregated.top_strategy_15m,
+                aggregated.signal_1h,
+                aggregated.score_1h,
+                aggregated.top_strategy_1h,
+                aggregated.signal_1d,
+                aggregated.score_1d,
+                aggregated.top_strategy_1d,
+                aggregated.scan_timestamp
+            ], (err) => {
+                if (err) {
+                    console.error(`[AUTO] Error storing signal for ${symbol}:`, err.message);
+                    reject(err);
+                } else {
+                    console.log(`[AUTO] ✓ ${symbol}: ${aggregated.final_signal} (${aggregated.final_score}%)`);
+                    resolve();
+                }
+            });
+        });
     }
 
     /**
@@ -320,6 +572,127 @@ export class AutoTrader {
             this.db.get("SELECT * FROM portfolio WHERE symbol = ?", [symbol], (err, row) => {
                 if (err) reject(err);
                 else resolve(row);
+            });
+        });
+    }
+    /**
+     * Manage open positions: Check for Stop Loss or Target Hit
+     */
+    async managePositions() {
+        try {
+            // Get all OPEN trades
+            const openTrades = await new Promise((resolve, reject) => {
+                this.db.all("SELECT * FROM trades WHERE status = 'OPEN'", [], (err, rows) => {
+                    if (err) reject(err);
+                    else resolve(rows);
+                });
+            });
+
+            if (openTrades.length === 0) return;
+
+            this.log('info', `Managing ${openTrades.length} open positions...`);
+
+            for (const trade of openTrades) {
+                // Fetch current price
+                const { quote } = await fetchMarketData(trade.symbol);
+                const currentPrice = quote.regularMarketPrice;
+
+                if (!currentPrice) {
+                    console.warn(`[AUTO] Could not fetch price for ${trade.symbol}`);
+                    continue;
+                }
+
+                let exitReason = null;
+
+                // Check Stop Loss
+                if (trade.stop_loss && currentPrice <= trade.stop_loss) {
+                    exitReason = 'STOP_LOSS';
+                }
+                // Check Target
+                else if (trade.target_price && currentPrice >= trade.target_price) {
+                    exitReason = 'TARGET_HIT';
+                }
+
+                if (exitReason) {
+                    this.log('warning', `Exiting ${trade.symbol} (${exitReason}) @ $${currentPrice}`);
+                    await this.closePosition(trade, currentPrice, exitReason);
+                }
+            }
+
+        } catch (error) {
+            console.error('[AUTO] Error managing positions:', error.message);
+        }
+    }
+
+    /**
+     * Close a position
+     * @param {Object} trade - The original trade object
+     * @param {number} exitPrice 
+     * @param {string} reason 
+     */
+    async closePosition(trade, exitPrice, reason) {
+        const pnl = (exitPrice - trade.price) * trade.quantity;
+        const pnlPercent = ((exitPrice - trade.price) / trade.price) * 100;
+
+        return new Promise((resolve, reject) => {
+            this.db.serialize(() => {
+                this.db.run("BEGIN TRANSACTION", (err) => {
+                    if (err) {
+                        console.error('[AUTO] Error starting transaction:', err);
+                        return reject(err);
+                    }
+
+                    // 1. Update Portfolio (Remove shares, Add Cash)
+                    const proceeds = trade.quantity * exitPrice;
+
+                    this.db.run("UPDATE portfolio SET quantity = quantity + ? WHERE symbol = 'CASH'", [proceeds], (err) => {
+                        if (err) {
+                            console.error('[AUTO] Error adding cash:', err);
+                            this.db.run("ROLLBACK", () => reject(err));
+                            return;
+                        }
+
+                        // Remove Shares
+                        this.db.run("UPDATE portfolio SET quantity = quantity - ? WHERE symbol = ?", [trade.quantity, trade.symbol], (err) => {
+                            if (err) {
+                                console.error('[AUTO] Error removing shares:', err);
+                                this.db.run("ROLLBACK", () => reject(err));
+                                return;
+                            }
+
+                            // Clean up zero quantity positions
+                            this.db.run("DELETE FROM portfolio WHERE symbol = ? AND quantity <= 0", [trade.symbol], (err) => {
+                                if (err) {
+                                    console.error('[AUTO] Error cleaning up position:', err);
+                                    this.db.run("ROLLBACK", () => reject(err));
+                                    return;
+                                }
+
+                                // 2. Update Trade Record
+                                this.db.run(
+                                    `UPDATE trades SET status = 'CLOSED', pnl = ?, setup_type = setup_type || ' (' || ? || ')' WHERE id = ?`,
+                                    [pnl, reason, trade.id],
+                                    (err) => {
+                                        if (err) {
+                                            console.error('[AUTO] Error updating trade record:', err);
+                                            this.db.run("ROLLBACK", () => reject(err));
+                                        } else {
+                                            this.db.run("COMMIT", (err) => {
+                                                if (err) {
+                                                    console.error('[AUTO] Error committing transaction:', err);
+                                                    this.db.run("ROLLBACK", () => reject(err));
+                                                } else {
+                                                    this.log('success', `Closed ${trade.symbol}: PnL $${pnl.toFixed(2)} (${pnlPercent.toFixed(2)}%)`);
+                                                    resolve();
+                                                }
+                                            });
+                                        }
+                                    }
+                                );
+                            });
+                        });
+                    });
+                });
             });
         });
     }

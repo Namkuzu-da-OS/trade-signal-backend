@@ -37,137 +37,127 @@
     </style>
 </head>
 
-<body class="min-h-screen p-6">
+</h1>
+</div>
 
-    <!-- Header -->
-    <header class="flex justify-between items-center mb-8">
-        <div class="flex items-center gap-4">
-            <a href="/" class="text-slate-400 hover:text-white transition-colors">
-                <i data-lucide="arrow-left" class="w-6 h-6"></i>
-            </a>
-            <h1 class="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-emerald-400">
-                Live Signal Feed
-            </h1>
-        </div>
+<!-- Automation Control -->
+<div class="glass-panel rounded-lg p-2 flex items-center gap-3 px-4">
+    <div id="status-indicator" class="w-3 h-3 rounded-full bg-slate-500"></div>
+    <span id="status-text" class="text-sm font-medium text-slate-300">Offline</span>
+    <button id="toggle-auto-btn"
+        class="ml-4 px-3 py-1 rounded bg-slate-700 hover:bg-slate-600 text-xs font-bold transition-all">
+        START
+    </button>
+</div>
+</header>
 
-        <!-- Automation Control -->
-        <div class="glass-panel rounded-lg p-2 flex items-center gap-3 px-4">
-            <div id="status-indicator" class="w-3 h-3 rounded-full bg-slate-500"></div>
-            <span id="status-text" class="text-sm font-medium text-slate-300">Offline</span>
-            <button id="toggle-auto-btn"
-                class="ml-4 px-3 py-1 rounded bg-slate-700 hover:bg-slate-600 text-xs font-bold transition-all">
-                START
-            </button>
-        </div>
-    </header>
+<!-- Alerts Grid -->
+<main id="alerts-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <!-- Alerts will be injected here -->
+    <div class="col-span-full text-center py-20 text-slate-500">
+        <i data-lucide="loader" class="w-8 h-8 mx-auto animate-spin mb-4"></i>
+        <p>Loading alerts...</p>
+    </div>
+</main>
 
-    <!-- Alerts Grid -->
-    <main id="alerts-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <!-- Alerts will be injected here -->
-        <div class="col-span-full text-center py-20 text-slate-500">
-            <i data-lucide="loader" class="w-8 h-8 mx-auto animate-spin mb-4"></i>
-            <p>Loading alerts...</p>
-        </div>
-    </main>
+<script>
+    lucide.createIcons();
 
-    <script>
-        lucide.createIcons();
+    // State
+    let isRunning = false;
 
-        // State
-        let isRunning = false;
+    // Elements
+    const container = document.getElementById('alerts-container');
+    const statusIndicator = document.getElementById('status-indicator');
+    const statusText = document.getElementById('status-text');
+    const toggleBtn = document.getElementById('toggle-auto-btn');
 
-        // Elements
-        const container = document.getElementById('alerts-container');
-        const statusIndicator = document.getElementById('status-indicator');
-        const statusText = document.getElementById('status-text');
-        const toggleBtn = document.getElementById('toggle-auto-btn');
+    // Init
+    fetchStatus();
+    fetchAlerts();
+    setInterval(fetchAlerts, 10000); // Refresh every 10s
+    setInterval(fetchStatus, 5000);   // Check status every 5s
 
-        // Init
-        fetchStatus();
-        fetchAlerts();
-        setInterval(fetchAlerts, 10000); // Refresh every 10s
-        setInterval(fetchStatus, 5000);   // Check status every 5s
+    // --- Automation Control ---
 
-        // --- Automation Control ---
-
-        async function fetchStatus() {
-            try {
-                const res = await fetch('/api/auto/status');
-                const data = await res.json();
-                isRunning = data.isRunning;
-                updateStatusUI();
-            } catch (e) {
-                console.error('Status check failed', e);
-            }
+    async function fetchStatus() {
+        try {
+            const res = await fetch('/api/auto/status');
+            const data = await res.json();
+            isRunning = data.isRunning;
+            updateStatusUI();
+        } catch (e) {
+            console.error('Status check failed', e);
         }
+    }
 
-        function updateStatusUI() {
-            if (isRunning) {
-                statusIndicator.className = 'w-3 h-3 rounded-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)] animate-pulse-slow';
-                statusText.textContent = 'System Active';
-                statusText.className = 'text-sm font-medium text-emerald-400';
-                toggleBtn.textContent = 'STOP';
-                toggleBtn.className = 'ml-4 px-3 py-1 rounded bg-rose-500/20 hover:bg-rose-500/40 text-rose-400 text-xs font-bold transition-all border border-rose-500/50';
-            } else {
-                statusIndicator.className = 'w-3 h-3 rounded-full bg-slate-500';
-                statusText.textContent = 'System Offline';
-                statusText.className = 'text-sm font-medium text-slate-400';
-                toggleBtn.textContent = 'START';
-                toggleBtn.className = 'ml-4 px-3 py-1 rounded bg-emerald-500/20 hover:bg-emerald-500/40 text-emerald-400 text-xs font-bold transition-all border border-emerald-500/50';
-            }
+    function updateStatusUI() {
+        if (isRunning) {
+            statusIndicator.className = 'w-3 h-3 rounded-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)] animate-pulse-slow';
+            statusText.textContent = 'System Active';
+            statusText.className = 'text-sm font-medium text-emerald-400';
+            toggleBtn.textContent = 'STOP';
+            toggleBtn.className = 'ml-4 px-3 py-1 rounded bg-rose-500/20 hover:bg-rose-500/40 text-rose-400 text-xs font-bold transition-all border border-rose-500/50';
+        } else {
+            statusIndicator.className = 'w-3 h-3 rounded-full bg-slate-500';
+            statusText.textContent = 'System Offline';
+            statusText.className = 'text-sm font-medium text-slate-400';
+            toggleBtn.textContent = 'START';
+            toggleBtn.className = 'ml-4 px-3 py-1 rounded bg-emerald-500/20 hover:bg-emerald-500/40 text-emerald-400 text-xs font-bold transition-all border border-emerald-500/50';
         }
+    }
 
-        toggleBtn.addEventListener('click', async () => {
-            const endpoint = isRunning ? '/api/auto/stop' : '/api/auto/start';
-            const method = 'POST';
-            const body = isRunning ? {} : { interval: 15 }; // Default 15m
+    toggleBtn.addEventListener('click', async () => {
+        const endpoint = isRunning ? '/api/auto/stop' : '/api/auto/start';
+        const method = 'POST';
+        const body = isRunning ? {} : { interval: 15 }; // Default 15m
 
-            try {
-                toggleBtn.disabled = true;
-                toggleBtn.innerHTML = '<i data-lucide="loader" class="w-3 h-3 animate-spin"></i>';
-                lucide.createIcons();
+        try {
+            toggleBtn.disabled = true;
+            toggleBtn.innerHTML = '<i data-lucide="loader" class="w-3 h-3 animate-spin"></i>';
+            lucide.createIcons();
 
-                await fetch(endpoint, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(body)
-                });
+            await fetch(endpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
 
-                await fetchStatus();
-            } catch (e) {
-                alert('Failed to toggle automation');
-            } finally {
-                toggleBtn.disabled = false;
-            }
-        });
-
-        // --- Alerts Feed ---
-
-        async function fetchAlerts() {
-            try {
-                const res = await fetch('/api/alerts');
-                const alerts = await res.json();
-                renderAlerts(alerts);
-            } catch (e) {
-                console.error('Failed to fetch alerts', e);
-            }
+            await fetchStatus();
+        } catch (e) {
+            alert('Failed to toggle automation');
+        } finally {
+            toggleBtn.disabled = false;
         }
+    });
 
-        function renderAlerts(alerts) {
-            if (alerts.length === 0) {
-                container.innerHTML = `
+    // --- Alerts Feed ---
+
+    async function fetchAlerts() {
+        try {
+            const res = await fetch('/api/alerts');
+            const alerts = await res.json();
+            renderAlerts(alerts);
+        } catch (e) {
+            console.error('Failed to fetch alerts', e);
+        }
+    }
+
+    function renderAlerts(alerts) {
+        if (alerts.length === 0) {
+            container.innerHTML = `
                     <div class="col-span-full text-center py-20 text-slate-500">
                         <p>No alerts generated yet. Start the automation engine.</p>
                     </div>
                 `;
-                return;
-            }
+            return;
+        }
 
-            container.innerHTML = alerts.map(alert => {
-                const date = new Date(alert.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                const scoreColor = alert.score >= 80 ? 'text-emerald-400' : alert.score >= 50 ? 'text-amber-400' : 'text-slate-400';
+        container.innerHTML = alerts.map(alert => {
+            const date = new Date(alert.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            const scoreColor = alert.score >= 80 ? 'text-emerald-400' : alert.score >= 50 ? 'text-amber-400' : 'text-slate-400';
 
-                return `
+            return `
                 <div class="glass-panel rounded-xl p-5 relative overflow-hidden group hover:border-blue-500/30 transition-all">
                     <div class="flex justify-between items-start mb-4">
                         <div>
@@ -189,24 +179,24 @@
                     </div>
                 </div>
                 `;
-            }).join('');
+        }).join('');
 
-            lucide.createIcons();
-        }
+        lucide.createIcons();
+    }
 
-        function renderAIButton(id) {
-            return `
+    function renderAIButton(id) {
+        return `
                 <button onclick="triggerAI(${id})" class="w-full py-2 rounded-lg bg-indigo-600/20 hover:bg-indigo-600/40 text-indigo-300 border border-indigo-500/30 flex items-center justify-center gap-2 transition-all group-hover:bg-indigo-600/30">
                     <i data-lucide="sparkles" class="w-4 h-4"></i>
                     Analyze with AI
                 </button>
             `;
-        }
+    }
 
-        function renderAIContent(text) {
-            // Simple markdown parsing for bold
-            const formatted = text.replace(/\*\*(.*?)\*\*/g, '<strong class="text-indigo-300">$1</strong>');
-            return `
+    function renderAIContent(text) {
+        // Simple markdown parsing for bold
+        const formatted = text.replace(/\*\*(.*?)\*\*/g, '<strong class="text-indigo-300">$1</strong>');
+        return `
                 <div class="text-sm text-slate-300 leading-relaxed bg-slate-900/50 p-3 rounded-lg border border-indigo-500/10">
                     <div class="flex items-center gap-2 mb-2 text-indigo-400 text-xs font-bold uppercase tracking-wider">
                         <i data-lucide="bot" class="w-3 h-3"></i> Gemini Insight
@@ -214,42 +204,42 @@
                     ${formatted}
                 </div>
             `;
-        }
+    }
 
-        // Global function for button click
-        window.triggerAI = async (id) => {
-            const btnDiv = document.getElementById(`ai-section-${id}`);
-            btnDiv.innerHTML = `
+    // Global function for button click
+    window.triggerAI = async (id) => {
+        const btnDiv = document.getElementById(`ai-section-${id}`);
+        btnDiv.innerHTML = `
                 <div class="flex items-center justify-center gap-2 py-2 text-indigo-400 animate-pulse">
                     <i data-lucide="loader" class="w-4 h-4 animate-spin"></i>
                     Analyzing market context...
                 </div>
             `;
-            lucide.createIcons();
+        lucide.createIcons();
 
-            try {
-                const res = await fetch(`/api/alerts/${id}/analyze`, { method: 'POST' });
-                const data = await res.json();
+        try {
+            const res = await fetch(`/api/alerts/${id}/analyze`, { method: 'POST' });
+            const data = await res.json();
 
-                if (data.analysis) {
-                    btnDiv.innerHTML = renderAIContent(data.analysis);
-                    lucide.createIcons();
-                } else {
-                    throw new Error('No analysis returned');
-                }
-            } catch (e) {
-                console.error(e);
-                btnDiv.innerHTML = `
+            if (data.analysis) {
+                btnDiv.innerHTML = renderAIContent(data.analysis);
+                lucide.createIcons();
+            } else {
+                throw new Error('No analysis returned');
+            }
+        } catch (e) {
+            console.error(e);
+            btnDiv.innerHTML = `
                     <div class="text-rose-400 text-sm text-center py-2">
                         Analysis failed. Try again.
                     </div>
                     ${renderAIButton(id)}
                 `;
-                lucide.createIcons();
-            }
-        };
+            lucide.createIcons();
+        }
+    };
 
-    </script>
+</script>
 </body>
 
 </html>

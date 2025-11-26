@@ -182,10 +182,25 @@
     </style>
 </head>
 
-<body class="bg-slate-900 text-slate-200 min-h-screen flex flex-col">
+<body class="bg-gray-950 text-white min-h-screen font-sans">
+    <!-- Navigation Tabs -->
+    <nav class="bg-gray-900 border-b border-gray-800 sticky top-0 z-50">
+        <div class="container mx-auto px-4">
+            <div class="flex gap-1">
+                <a href="/index.html"
+                    class="px-6 py-4 text-sm font-semibold bg-gray-800 border-b-2 border-emerald-500 text-white">
+                    📊 Main Dashboard
+                </a>
+                <a href="/signals.html"
+                    class="px-6 py-4 text-sm font-semibold text-gray-400 hover:text-white hover:bg-gray-800 transition">
+                    🎯 Live Signals
+                </a>
+            </div>
+        </div>
+        </div>
+    </nav>
 
-    <!-- Navbar -->
-    <nav class="border-b border-slate-700 bg-slate-900/95 sticky top-0 z-50 backdrop-blur-sm">
+    <div class="container mx-auto px-4 py-8 max-w-7xl">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex items-center justify-between h-16">
                 <div class="flex items-center gap-3">
@@ -197,10 +212,6 @@
                 <!-- Navigation -->
                 <div class="hidden md:flex items-center gap-6 ml-8">
                     <a href="/" class="text-white font-medium hover:text-indigo-400 transition-colors">Dashboard</a>
-                    <a href="/alerts.html"
-                        class="text-slate-400 font-medium hover:text-emerald-400 transition-colors flex items-center gap-1">
-                        <i data-lucide="activity" class="w-4 h-4"></i> Live Alerts
-                    </a>
                 </div>
                 <div class="flex items-center gap-6 text-sm">
                     <div class="hidden md:flex items-center gap-2">
@@ -219,623 +230,572 @@
                 </div>
             </div>
         </div>
-    </nav>
+        </nav>
 
-    <main class="flex-grow p-4 md:p-8 max-w-7xl mx-auto w-full grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <main class="flex-grow p-4 md:p-8 max-w-7xl mx-auto w-full grid grid-cols-1 lg:grid-cols-12 gap-6">
 
-        <!-- LEFT PANEL: Watchlist & Strategy Scanner -->
-        <aside class="lg:col-span-3 flex flex-col gap-6" id="leftPanel">
+            <!-- LEFT PANEL: Watchlist & Strategy Scanner -->
+            <aside class="lg:col-span-3 flex flex-col gap-6" id="leftPanel">
 
-            <!-- Mode Tabs -->
-            <div class="mode-tabs-container">
-                <div class="flex gap-2">
-                    <button class="mode-tab active" data-mode="SWING" onclick="switchMode('SWING')">
-                        <span class="mode-icon">📈</span>
-                        <div class="mode-info">
-                            <div class="mode-label">Swing</div>
-                            <div class="mode-desc">Daily/Weekly</div>
-                        </div>
-                    </button>
-                    <button class="mode-tab" data-mode="INTRADAY" onclick="switchMode('INTRADAY')">
-                        <span class="mode-icon">⚡</span>
-                        <div class="mode-info">
-                            <div class="mode-label">Intraday</div>
-                            <div class="mode-desc">15m/1h</div>
-                        </div>
-                    </button>
-                </div>
-            </div>
-
-            <!-- Timeframe Selector -->
-            <div
-                class="bg-slate-800 rounded-xl border border-slate-700 p-3 shadow-lg flex items-center justify-between">
-                <span class="text-xs text-slate-500 uppercase font-bold">Timeframe:</span>
-                <div id="timeframeButtons" class="flex gap-2">
-                    <!-- Populated by JS -->
-                </div>
-            </div>
-
-            <!-- Control Box -->
-            <div class="bg-slate-800 rounded-xl border border-slate-700 p-5 shadow-lg" data-id="controlWidget">
-                <div class="flex items-center justify-between mb-4">
-                    <h2 class="text-white font-semibold flex items-center gap-2">
-                        <span>🚀</span> Signal Engine
-                    </h2>
-                </div>
-                <div class="space-y-3">
-                    <button id="scanWatchlistBtn" onclick="scanWatchlist()"
-                        class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 px-4 rounded-lg transition-all transform active:scale-95 flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20">
-                        <span>⚡</span> Scan Watchlist
-                    </button>
-
-                    <div class="relative">
-                        <div class="absolute inset-0 flex items-center" aria-hidden="true">
-                            <div class="w-full border-t border-slate-700"></div>
-                        </div>
-                        <div class="relative flex justify-center">
-                            <span class="bg-slate-800 px-2 text-xs text-slate-500">OR SINGLE ASSET</span>
-                        </div>
-                    </div>
-
+                <!-- Mode Tabs -->
+                <div class="mode-tabs-container">
                     <div class="flex gap-2">
-                        <select id="assetSelect"
-                            class="flex-1 bg-slate-900 border border-slate-700 text-white text-sm rounded-lg p-2 focus:ring-2 focus:ring-indigo-500 outline-none">
-                            <option value="SPY">SPY</option>
-                            <option value="QQQ">QQQ</option>
-                            <option value="IWM">IWM</option>
-                            <option value="NVDA">NVDA</option>
-                            <option value="AAPL">AAPL</option>
-                            <option value="MSFT">MSFT</option>
-                            <option value="TSLA">TSLA</option>
-                            <option value="AMD">AMD</option>
-                        </select>
-                        <button id="scanBtn" onclick="runScan()"
-                            class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 px-4 rounded-lg transition-all">
-                            🔍
+                        <button class="mode-tab active" data-mode="SWING" id="btnSwing">
+                            <span class="mode-icon">📈</span>
+                            <div class="mode-info">
+                                <div class="mode-label">Swing</div>
+                                <div class="mode-desc">Daily/Weekly</div>
+                            </div>
+                        </button>
+                        <button class="mode-tab" data-mode="INTRADAY" id="btnIntraday">
+                            <span class="mode-icon">⚡</span>
+                            <div class="mode-info">
+                                <div class="mode-label">Intraday</div>
+                                <div class="mode-desc">15m/1h</div>
+                            </div>
                         </button>
                     </div>
                 </div>
-            </div>
 
-            <!-- Live Opportunities List -->
-            <div class="flex-1 overflow-hidden flex flex-col" id="opportunitiesWidget">
-                <h3 class="text-slate-400 text-xs font-bold uppercase tracking-wider mb-3 px-1">Live Opportunities</h3>
-                <div id="strategyList" class="space-y-3 overflow-y-auto pr-1 custom-scrollbar flex-1">
-                    <div class="text-center text-slate-500 py-10 italic">
-                        Hit "Scan Watchlist" to find high-probability setups instantly.
-                    </div>
-                </div>
-            </div>
-
-
-
-            <!-- Watchlist -->
-            <div class="bg-slate-800 rounded-xl border border-slate-700 p-5 shadow-lg" data-id="watchlistWidget">
-                <h2 class="text-white font-semibold mb-4 flex items-center justify-between cursor-move">
-                    <span class="flex items-center gap-2">⭐ Watchlist</span>
-                </h2>
-                <div id="watchlistContainer" class="space-y-2 max-h-60 overflow-y-auto pr-2">
-                    <!-- Injected via JS -->
-                    <div class="text-xs text-slate-500 text-center py-4">Loading...</div>
-                </div>
-                <div class="mt-4 pt-4 border-t border-slate-700">
-                    <div class="flex gap-2">
-                        <input type="text" id="watchlistInput" placeholder="Add Symbol"
-                            class="w-full bg-slate-900 border border-slate-700 text-white rounded px-2 py-1 text-sm focus:outline-none focus:border-indigo-500 uppercase">
-                        <button onclick="addToWatchlist()"
-                            class="bg-indigo-600 hover:bg-indigo-500 text-white rounded px-3 py-1 text-sm">+</button>
-                    </div>
-                </div>
-            </div>
-
-
-
-        </aside>
-
-        <!-- RIGHT PANEL: Deep Analysis -->
-        <section class="lg:col-span-9 flex flex-col gap-6">
-
-            <!-- Analysis Panel (Hidden initially) -->
-            <div id="analysisPanel" class="hidden flex-col gap-6 h-full">
-
-                <!-- Header -->
-                <header class="bg-slate-800 rounded-xl border border-slate-700 p-6 shadow-lg relative overflow-hidden">
-                    <div class="relative z-10 grid grid-cols-1 md:grid-cols-12 gap-6">
-
-                        <!-- Title & Signal -->
-                        <div class="md:col-span-5">
-                            <div class="flex items-center gap-3 mb-2">
-                                <span id="detailAsset" class="text-2xl font-black text-white tracking-tight">SPY</span>
-                                <span id="detailPrice" class="text-xl font-mono text-slate-400">$0.00</span>
-                            </div>
-                            <div class="flex items-center gap-3 mb-4">
-                                <span id="detailBadge"
-                                    class="px-3 py-1 rounded text-sm font-bold bg-emerald-500 text-slate-900 uppercase tracking-wide shadow-lg shadow-emerald-500/20">STRONG
-                                    BUY</span>
-                                <span id="detailScore" class="text-lg font-bold text-emerald-400">92% Match</span>
-                                <!-- NEW: Confluence Badge -->
-                                <span id="confluenceBadge"
-                                    class="px-2 py-1 rounded text-xs font-bold bg-indigo-500/20 text-indigo-400 border border-indigo-500/30">
-                                    <span class="mr-1">⚡</span><span id="confluenceText">--</span>
-                                </span>
-                            </div>
-                            <h2 id="detailTitle" class="text-lg font-semibold text-slate-200">Strategy Name</h2>
-                            <p id="detailDesc" class="text-slate-400 text-xs mt-1">Strategy description.</p>
-                        </div>
-
-                        <!-- Trade Setup (Prominent) -->
-                        <div
-                            class="md:col-span-7 bg-slate-900/50 rounded-lg border border-slate-700/50 p-4 flex items-center justify-between gap-4">
-                            <div class="text-center">
-                                <div class="text-[10px] text-slate-500 uppercase font-bold mb-1">Entry Zone</div>
-                                <div id="setupEntry" class="font-mono text-xl font-bold text-white">--</div>
-                            </div>
-                            <div class="h-8 w-px bg-slate-700"></div>
-                            <div class="text-center">
-                                <div class="text-[10px] text-slate-500 uppercase font-bold mb-1 text-rose-400">Stop Loss
-                                </div>
-                                <div id="setupStop" class="font-mono text-lg font-bold text-rose-400">--</div>
-                            </div>
-                            <div class="h-8 w-px bg-slate-700"></div>
-                            <div class="text-center">
-                                <div class="text-[10px] text-slate-500 uppercase font-bold mb-1 text-emerald-400">Target
-                                </div>
-                                <div id="setupTarget" class="font-mono text-lg font-bold text-emerald-400">--</div>
-                            </div>
-                            <div class="h-8 w-px bg-slate-700"></div>
-                            <div class="text-center">
-                                <div class="text-[10px] text-slate-500 uppercase font-bold mb-1">Size</div>
-                                <div id="setupShares" class="font-mono text-sm text-indigo-300">--</div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- AI Sentiment Widget -->
-                    <div class="mt-6 pt-4 border-t border-slate-700/50">
-                        <div class="flex items-center gap-3">
-                            <div class="w-8 h-8 rounded bg-blue-500/10 flex items-center justify-center text-blue-400">
-                                🤖</div>
-                            <div class="w-full">
-                                <div class="text-xs text-slate-500 uppercase font-bold">AI Sentiment</div>
-                                <div id="aiSentiment" class="text-sm text-slate-300">Loading...</div>
-                            </div>
-                        </div>
-                    </div>
-
-
-
-                    <!-- Analysis Grid -->
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6 pt-6 border-t border-slate-700/50">
-                        <!-- Trend Context -->
-                        <div class="bg-slate-900/50 p-4 rounded-lg border border-slate-700/50">
-                            <div class="flex items-center gap-2 mb-3 group relative">
-                                <h3 class="text-xs text-slate-500 uppercase font-bold">Multi-Timeframe Alignment</h3>
-                                <span
-                                    class="text-[10px] text-slate-500 cursor-help border border-slate-600 rounded-full w-3 h-3 flex items-center justify-center">i</span>
-                                <!-- Tooltip -->
-                                <div
-                                    class="absolute left-0 top-6 w-72 bg-slate-800 border border-indigo-500/30 rounded-lg p-3 text-xs text-slate-300 leading-relaxed opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 shadow-xl">
-                                    <div class="font-bold text-indigo-400 mb-2">📚 Multi-Timeframe Analysis</div>
-                                    <p class="mb-2">Checking if trends align across Daily, Weekly, and Monthly charts
-                                        increases trade success by <strong class="text-emerald-400">15-20%</strong>.</p>
-                                    <p class="mb-2"><strong class="text-white">3/3 Alignment:</strong> All timeframes
-                                        agree - highest probability setup.</p>
-                                    <p><strong class="text-white">Look for:</strong> Green badges (↑) across all
-                                        timeframes for strong uptrend confirmation.</p>
-                                </div>
-                            </div>
-                            <div class="flex flex-col gap-2">
-                                <div id="dailyBadge"
-                                    class="px-3 py-2 rounded text-xs font-bold bg-slate-500/20 text-slate-400 border border-slate-500/30">
-                                    <span class="mr-2">📅</span> Daily: <span id="trendDaily">--</span>
-                                </div>
-                                <div id="weeklyBadge"
-                                    class="px-3 py-2 rounded text-xs font-bold bg-slate-500/20 text-slate-400 border border-slate-500/30">
-                                    <span class="mr-2">📊</span> Weekly: <span id="trendWeekly">--</span>
-                                </div>
-                                <div id="monthlyBadge"
-                                    class="px-3 py-2 rounded text-xs font-bold bg-slate-500/20 text-slate-400 border border-slate-500/30">
-                                    <span class="mr-2">📈</span> Monthly: <span id="trendMonthly">--</span>
-                                </div>
-                            </div>
-                            <div id="alignmentScore" class="mt-3 pt-3 border-t border-slate-700/50 text-center">
-                                <span class="text-xs text-slate-500">Alignment: </span>
-                                <span id="alignmentValue" class="font-bold text-sm">--</span>
-                            </div>
-                        </div>
-
-                        <!-- Key Levels -->
-                        <div class="bg-slate-900/50 p-4 rounded-lg border border-slate-700/50">
-                            <h3 class="text-xs text-slate-500 uppercase font-bold mb-3">Key Levels</h3>
-                            <div class="grid grid-cols-3 gap-2 text-xs font-mono text-slate-400">
-                                <div>
-                                    <span class="block text-[10px] text-slate-600">PIVOT</span>
-                                    <span id="levelPivot" class="text-slate-300">--</span>
-                                </div>
-                                <div>
-                                    <span id="levelFibLabel" class="block text-[10px] text-slate-600">FIB 61.8%</span>
-                                    <span id="levelFib" class="text-slate-300">--</span>
-                                </div>
-                                <div>
-                                    <span class="block text-[10px] text-slate-600">PREV HIGH</span>
-                                    <span id="levelHigh" class="text-slate-300">--</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </header>
-
-                <!-- Main Chart Area -->
-                <div class="bg-slate-800 rounded-xl border border-slate-700 p-4 shadow-lg flex-grow flex flex-col">
-                    <div class="flex justify-between items-center mb-4 px-2">
-                        <h3 class="text-white font-semibold text-sm">Visual Confirmation (50 Days)</h3>
-                        <div class="flex gap-3 flex-wrap">
-                            <span class="text-xs text-slate-500 flex items-center gap-1"><span
-                                    class="w-2 h-2 rounded-full bg-indigo-500"></span> Price</span>
-                            <span class="text-xs text-slate-500 flex items-center gap-1"><span
-                                    class="w-2 h-2 rounded-full bg-amber-500"></span> SMA 20</span>
-                            <span class="text-xs text-slate-500 flex items-center gap-1"><span
-                                    class="w-2 h-2 rounded-full bg-cyan-500"></span> VWAP</span>
-                            <span class="text-xs text-slate-500 flex items-center gap-1"><span
-                                    class="w-2 h-2 rounded-full bg-slate-500"></span> Bollinger</span>
-                        </div>
-                    </div>
-                    <div class="chart-container w-full h-full bg-slate-900/50 rounded-lg border border-slate-700/50">
-                        <canvas id="mainChart"></canvas>
-                    </div>
-                </div>
-
-                <!-- ORB Section (Intraday Only) -->
-                <div id="orbSection" class="bg-slate-800 rounded-xl border border-slate-700 p-4 shadow-lg"
-                    style="display: none;">
-                    <h3 class="text-sm font-bold text-slate-400 uppercase mb-3">
-                        🎯 Opening Range (9:30-10:00 AM)
-                    </h3>
-
-                    <div class="grid grid-cols-3 gap-4 mb-4">
-                        <div class="bg-slate-900/50 p-3 rounded-lg border border-slate-700/50">
-                            <div class="text-xs text-slate-500 mb-1">ORB High</div>
-                            <div class="text-lg font-bold text-emerald-400" id="orbHigh">--</div>
-                        </div>
-                        <div class="bg-slate-900/50 p-3 rounded-lg border border-slate-700/50">
-                            <div class="text-xs text-slate-500 mb-1">ORB Low</div>
-                            <div class="text-lg font-bold text-rose-400" id="orbLow">--</div>
-                        </div>
-                        <div class="bg-slate-900/50 p-3 rounded-lg border border-slate-700/50">
-                            <div class="text-xs text-slate-500 mb-1">Range</div>
-                            <div class="text-lg font-bold text-slate-300" id="orbRange">--</div>
-                        </div>
-                    </div>
-
-                    <div id="orbStatus" class="text-center py-2 rounded bg-slate-900/50 border border-slate-700/50">
-                        <span class="text-sm text-slate-400">Waiting for ORB data...</span>
-                    </div>
-                </div>
-
-                <!-- The "Why" Logic Grid -->
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-
-                    <!-- Checklist -->
-                    <div class="bg-slate-800 rounded-xl border border-slate-700 p-5 shadow-lg">
-                        <h3 class="text-white font-semibold mb-4 border-b border-slate-700 pb-2">Confluence Checklist
-                        </h3>
-                        <ul id="checklistContainer" class="space-y-3">
-                            <!-- Items injected via JS -->
-                        </ul>
-                    </div>
-
-                    <!-- Logic Explainer -->
-                    <div class="bg-slate-800 rounded-xl border border-slate-700 p-5 shadow-lg">
-                        <h3 class="text-white font-semibold mb-4 border-b border-slate-700 pb-2">Strategy Logic</h3>
-                        <div id="logicContainer" class="space-y-3 text-sm text-slate-300">
-                            <!-- Text injected via JS -->
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Indicator Summary -->
-                <div class="bg-slate-800 rounded-xl border border-slate-700 p-5 shadow-lg">
-                    <h3 class="text-white font-semibold mb-4 border-b border-slate-700 pb-2">Technical Indicators</h3>
-                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4" id="indicatorGrid">
+                <!-- Timeframe Selector -->
+                <div
+                    class="bg-slate-800 rounded-xl border border-slate-700 p-3 shadow-lg flex items-center justify-between">
+                    <span class="text-xs text-slate-500 uppercase font-bold">Timeframe:</span>
+                    <div id="timeframeButtons" class="flex gap-2">
                         <!-- Populated by JS -->
                     </div>
                 </div>
-            </div>
 
-            <!-- Empty State -->
-            <div id="emptyState"
-                class="h-full flex flex-col items-center justify-center text-slate-600 p-10 border-2 border-dashed border-slate-800 rounded-xl">
-                <div class="text-6xl mb-4 opacity-20">📊</div>
-                <h3 class="text-xl font-semibold text-slate-500">Awaiting Scan Results</h3>
-                <a href="#" class="text-slate-300 hover:text-white transition-colors">Dashboard</a>
-                <a href="/alerts.html"
-                    class="text-emerald-400 hover:text-emerald-300 transition-colors flex items-center gap-1">
-                    <i data-lucide="activity" class="w-4 h-4"></i> Live Alerts
-                </a>
-                <a href="#" class="text-slate-300 hover:text-white transition-colors">Portfolio</a>
-                <p class="text-sm max-w-md text-center mt-2">Select an asset and run the scanner to analyze technical
-                    indicators across multiple strategies.</p>
-            </div>
+                <!-- Control Box -->
+                <div class="bg-slate-800 rounded-xl border border-slate-700 p-5 shadow-lg" data-id="controlWidget">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-white font-semibold flex items-center gap-2">
+                            <span>🚀</span> Signal Engine
+                        </h2>
+                    </div>
+                    <div class="space-y-3">
+                        <div class="flex gap-2">
+                            <select id="assetSelect"
+                                class="flex-1 bg-slate-900 border border-slate-700 text-white text-sm rounded-lg p-2 focus:ring-2 focus:ring-indigo-500 outline-none">
+                                <option value="SPY">SPY</option>
+                                <option value="QQQ">QQQ</option>
+                                <option value="IWM">IWM</option>
+                                <option value="NVDA">NVDA</option>
+                                <option value="AAPL">AAPL</option>
+                                <option value="MSFT">MSFT</option>
+                                <option value="TSLA">TSLA</option>
+                                <option value="AMD">AMD</option>
+                            </select>
+                            <button id="scanBtn" onclick="runScan()"
+                                class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 px-6 rounded-lg transition-all">
+                                🔍 Scan
+                            </button>
+                        </div>
+                        <div class="text-xs text-slate-500 text-center">
+                            For watchlist scanning, visit <a href="/signals.html"
+                                class="text-indigo-400 hover:text-indigo-300 underline">Live Signals</a>
+                        </div>
+                    </div>
+                </div>
 
-        </section>
-    </main>
 
-    <script>
-        // ============================================================================
-        // GLOBAL STATE
-        // ============================================================================
+                <!-- Watchlist -->
+                <div class="bg-slate-800 rounded-xl border border-slate-700 p-5 shadow-lg" data-id="watchlistWidget">
+                    <h2 class="text-white font-semibold mb-4 flex items-center justify-between cursor-move">
+                        <span class="flex items-center gap-2">⭐ Watchlist</span>
+                    </h2>
+                    <div id="watchlistContainer" class="space-y-2 max-h-60 overflow-y-auto pr-2">
+                        <!-- Injected via JS -->
+                        <div class="text-xs text-slate-500 text-center py-4">Loading...</div>
+                    </div>
+                    <div class="mt-4 pt-4 border-t border-slate-700">
+                        <div class="flex gap-2">
+                            <input type="text" id="watchlistInput" placeholder="Add Symbol"
+                                class="w-full bg-slate-900 border border-slate-700 text-white rounded px-2 py-1 text-sm focus:outline-none focus:border-indigo-500 uppercase">
+                            <button onclick="addToWatchlist()"
+                                class="bg-indigo-600 hover:bg-indigo-500 text-white rounded px-3 py-1 text-sm">+</button>
+                        </div>
+                    </div>
+                </div>
 
-        let mainChart = null;
-        let currentData = null;
-        let activeStrategyId = null;
 
-        // Mode State
-        let currentMode = 'SWING';
-        let currentTimeframe = '1d';
 
-        const MODE_CONFIG = {
-            SWING: {
-                label: '📈 Swing Trading',
-                timeframes: ['1d', '1wk'],
-                defaultTimeframe: '1d',
-                description: 'Hold 2-7 days • Daily/Weekly charts',
-                showORB: false,
-                showMultiTimeframe: true
-            },
-            INTRADAY: {
-                label: '⚡ Intraday Trading',
-                timeframes: ['15m', '1h'],
-                defaultTimeframe: '15m',
-                description: 'Same-day trades • 15min/1hr charts',
-                showORB: true,
-                showMultiTimeframe: false
-            }
-        };
+            </aside>
 
-        function switchMode(mode) {
-            currentMode = mode;
-            const config = MODE_CONFIG[mode];
+            <!-- RIGHT PANEL: Deep Analysis -->
+            <section class="lg:col-span-9 flex flex-col gap-6">
 
-            // Update UI: Active tab
-            document.querySelectorAll('.mode-tab').forEach(tab => {
-                tab.classList.toggle('active', tab.dataset.mode === mode);
-            });
+                <!-- Analysis Panel (Hidden initially) -->
+                <div id="analysisPanel" class="hidden flex-col gap-6 h-full">
 
-            // Update timeframe buttons
-            renderTimeframeButtons(config.timeframes);
+                    <!-- Header -->
+                    <header
+                        class="bg-slate-800 rounded-xl border border-slate-700 p-6 shadow-lg relative overflow-hidden">
+                        <div class="relative z-10 grid grid-cols-1 md:grid-cols-12 gap-6">
 
-            // Set default timeframe for this mode
-            selectTimeframe(config.defaultTimeframe);
+                            <!-- Title & Signal -->
+                            <div class="md:col-span-5">
+                                <div class="flex items-center gap-3 mb-2">
+                                    <span id="detailAsset"
+                                        class="text-2xl font-black text-white tracking-tight">SPY</span>
+                                    <span id="detailPrice" class="text-xl font-mono text-slate-400">$0.00</span>
+                                </div>
+                                <div class="flex items-center gap-3 mb-4">
+                                    <span id="detailBadge"
+                                        class="px-3 py-1 rounded text-sm font-bold bg-emerald-500 text-slate-900 uppercase tracking-wide shadow-lg shadow-emerald-500/20">STRONG
+                                        BUY</span>
+                                    <span id="detailScore" class="text-lg font-bold text-emerald-400">92% Match</span>
+                                    <!-- NEW: Confluence Badge -->
+                                    <span id="confluenceBadge"
+                                        class="px-2 py-1 rounded text-xs font-bold bg-indigo-500/20 text-indigo-400 border border-indigo-500/30">
+                                        <span class="mr-1">⚡</span><span id="confluenceText">--</span>
+                                    </span>
+                                </div>
+                                <h2 id="detailTitle" class="text-lg font-semibold text-slate-200">Strategy Name</h2>
+                                <p id="detailDesc" class="text-slate-400 text-xs mt-1">Strategy description.</p>
+                            </div>
 
-            // Show/hide mode-specific sections
-            toggleORBSection(config.showORB);
-            toggleMultiTimeframeSection(config.showMultiTimeframe);
-        }
+                            <!-- Trade Setup (Prominent) -->
+                            <div
+                                class="md:col-span-7 bg-slate-900/50 rounded-lg border border-slate-700/50 p-4 flex items-center justify-between gap-4">
+                                <div class="text-center">
+                                    <div class="text-[10px] text-slate-500 uppercase font-bold mb-1">Entry Zone</div>
+                                    <div id="setupEntry" class="font-mono text-xl font-bold text-white">--</div>
+                                </div>
+                                <div class="h-8 w-px bg-slate-700"></div>
+                                <div class="text-center">
+                                    <div class="text-[10px] text-slate-500 uppercase font-bold mb-1 text-rose-400">Stop
+                                        Loss
+                                    </div>
+                                    <div id="setupStop" class="font-mono text-lg font-bold text-rose-400">--</div>
+                                </div>
+                                <div class="h-8 w-px bg-slate-700"></div>
+                                <div class="text-center">
+                                    <div class="text-[10px] text-slate-500 uppercase font-bold mb-1 text-emerald-400">
+                                        Target
+                                    </div>
+                                    <div id="setupTarget" class="font-mono text-lg font-bold text-emerald-400">--</div>
+                                </div>
+                                <div class="h-8 w-px bg-slate-700"></div>
+                                <div class="text-center">
+                                    <div class="text-[10px] text-slate-500 uppercase font-bold mb-1">Size</div>
+                                    <div id="setupShares" class="font-mono text-sm text-indigo-300">--</div>
+                                </div>
+                            </div>
+                        </div>
 
-        function renderTimeframeButtons(timeframes) {
-            const container = document.getElementById('timeframeButtons');
-            container.innerHTML = '';
+                        <!-- AI Sentiment Widget -->
+                        <div class="mt-6 pt-4 border-t border-slate-700/50">
+                            <div class="flex items-center gap-3">
+                                <div
+                                    class="w-8 h-8 rounded bg-blue-500/10 flex items-center justify-center text-blue-400">
+                                    🤖</div>
+                                <div class="w-full">
+                                    <div class="text-xs text-slate-500 uppercase font-bold">AI Sentiment</div>
+                                    <div id="aiSentiment" class="text-sm text-slate-300">Loading...</div>
+                                </div>
+                            </div>
+                        </div>
 
-            timeframes.forEach(tf => {
-                const btn = document.createElement('button');
-                btn.className = `timeframe-btn ${tf === currentTimeframe ? 'active' : ''}`;
-                btn.textContent = tf.toUpperCase();
-                btn.onclick = () => selectTimeframe(tf);
-                container.appendChild(btn);
-            });
-        }
 
-        function selectTimeframe(timeframe) {
-            currentTimeframe = timeframe;
 
-            // Update active button
-            document.querySelectorAll('.timeframe-btn').forEach(btn => {
-                btn.classList.toggle('active', btn.textContent === timeframe.toUpperCase());
-            });
+                        <!-- Analysis Grid -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6 pt-6 border-t border-slate-700/50">
+                            <!-- Trend Context -->
+                            <div class="bg-slate-900/50 p-4 rounded-lg border border-slate-700/50">
+                                <div class="flex items-center gap-2 mb-3 group relative">
+                                    <h3 class="text-xs text-slate-500 uppercase font-bold">Multi-Timeframe Alignment
+                                    </h3>
+                                    <span
+                                        class="text-[10px] text-slate-500 cursor-help border border-slate-600 rounded-full w-3 h-3 flex items-center justify-center">i</span>
+                                    <!-- Tooltip -->
+                                    <div
+                                        class="absolute left-0 top-6 w-72 bg-slate-800 border border-indigo-500/30 rounded-lg p-3 text-xs text-slate-300 leading-relaxed opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 shadow-xl">
+                                        <div class="font-bold text-indigo-400 mb-2">📚 Multi-Timeframe Analysis</div>
+                                        <p class="mb-2">Checking if trends align across Daily, Weekly, and Monthly
+                                            charts
+                                            increases trade success by <strong class="text-emerald-400">15-20%</strong>.
+                                        </p>
+                                        <p class="mb-2"><strong class="text-white">3/3 Alignment:</strong> All
+                                            timeframes
+                                            agree - highest probability setup.</p>
+                                        <p><strong class="text-white">Look for:</strong> Green badges (↑) across all
+                                            timeframes for strong uptrend confirmation.</p>
+                                    </div>
+                                </div>
+                                <div class="flex flex-col gap-2">
+                                    <div id="dailyBadge"
+                                        class="px-3 py-2 rounded text-xs font-bold bg-slate-500/20 text-slate-400 border border-slate-500/30">
+                                        <span class="mr-2">📅</span> Daily: <span id="trendDaily">--</span>
+                                    </div>
+                                    <div id="weeklyBadge"
+                                        class="px-3 py-2 rounded text-xs font-bold bg-slate-500/20 text-slate-400 border border-slate-500/30">
+                                        <span class="mr-2">📊</span> Weekly: <span id="trendWeekly">--</span>
+                                    </div>
+                                    <div id="monthlyBadge"
+                                        class="px-3 py-2 rounded text-xs font-bold bg-slate-500/20 text-slate-400 border border-slate-500/30">
+                                        <span class="mr-2">📈</span> Monthly: <span id="trendMonthly">--</span>
+                                    </div>
+                                </div>
+                                <div id="alignmentScore" class="mt-3 pt-3 border-t border-slate-700/50 text-center">
+                                    <span class="text-xs text-slate-500">Alignment: </span>
+                                    <span id="alignmentValue" class="font-bold text-sm">--</span>
+                                </div>
+                            </div>
 
-            // Re-fetch data if we have a symbol selected
-            // But don't auto-run on initial load if no symbol is active?
-            // For now, we can just let the user click scan, or auto-scan if they are already viewing something.
-            // Let's auto-scan if we have data loaded.
-            if (currentData) {
-                runScan();
-            }
-        }
+                            <!-- Key Levels -->
+                            <div class="bg-slate-900/50 p-4 rounded-lg border border-slate-700/50">
+                                <h3 class="text-xs text-slate-500 uppercase font-bold mb-3">Key Levels</h3>
+                                <div class="grid grid-cols-3 gap-2 text-xs font-mono text-slate-400">
+                                    <div>
+                                        <span class="block text-[10px] text-slate-600">PIVOT</span>
+                                        <span id="levelPivot" class="text-slate-300">--</span>
+                                    </div>
+                                    <div>
+                                        <span id="levelFibLabel" class="block text-[10px] text-slate-600">FIB
+                                            61.8%</span>
+                                        <span id="levelFib" class="text-slate-300">--</span>
+                                    </div>
+                                    <div>
+                                        <span class="block text-[10px] text-slate-600">PREV HIGH</span>
+                                        <span id="levelHigh" class="text-slate-300">--</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </header>
 
-        function toggleORBSection(show) {
-            const orbSection = document.getElementById('orbSection');
-            if (orbSection) {
-                orbSection.style.display = show ? 'block' : 'none';
-            }
-        }
+                    <!-- Main Chart Area -->
+                    <div class="bg-slate-800 rounded-xl border border-slate-700 p-4 shadow-lg flex-grow flex flex-col">
+                        <div class="flex justify-between items-center mb-4 px-2">
+                            <h3 class="text-white font-semibold text-sm">Visual Confirmation (50 Days)</h3>
+                            <div class="flex gap-3 flex-wrap">
+                                <span class="text-xs text-slate-500 flex items-center gap-1"><span
+                                        class="w-2 h-2 rounded-full bg-indigo-500"></span> Price</span>
+                                <span class="text-xs text-slate-500 flex items-center gap-1"><span
+                                        class="w-2 h-2 rounded-full bg-amber-500"></span> SMA 20</span>
+                                <span class="text-xs text-slate-500 flex items-center gap-1"><span
+                                        class="w-2 h-2 rounded-full bg-cyan-500"></span> VWAP</span>
+                                <span class="text-xs text-slate-500 flex items-center gap-1"><span
+                                        class="w-2 h-2 rounded-full bg-slate-500"></span> Bollinger</span>
+                            </div>
+                        </div>
+                        <div
+                            class="chart-container w-full h-full bg-slate-900/50 rounded-lg border border-slate-700/50">
+                            <canvas id="mainChart"></canvas>
+                        </div>
+                    </div>
 
-        function toggleMultiTimeframeSection(show) {
-            // The trend context section is the first child of the Analysis Grid
-            // We can target it by ID if we added one, or by structure.
-            // Let's add an ID to the trend context section in the HTML first?
-            // Or just select it. It's the div containing "Multi-Timeframe Alignment".
-            // Actually, let's just find it by content for now or assume it's the first one.
-            // Better: Let's assume I'll add an ID to it or just leave it for now.
-            // Wait, I can select it via the header structure.
-            // Let's just use a query selector for now.
-            const mtfHeader = Array.from(document.querySelectorAll('h3')).find(el => el.textContent.includes('Multi-Timeframe Alignment'));
-            if (mtfHeader) {
-                const section = mtfHeader.closest('.bg-slate-900\\/50'); // Escaping slash
-                if (section) section.style.display = show ? 'block' : 'none';
-            }
-        }
+                    <!-- ORB Section (Intraday Only) -->
+                    <div id="orbSection" class="bg-slate-800 rounded-xl border border-slate-700 p-4 shadow-lg"
+                        style="display: none;">
+                        <h3 class="text-sm font-bold text-slate-400 uppercase mb-3">
+                            🎯 Opening Range (9:30-10:00 AM)
+                        </h3>
 
-        // ============================================================================
-        // API COMMUNICATION
-        // ============================================================================
+                        <div class="grid grid-cols-3 gap-4 mb-4">
+                            <div class="bg-slate-900/50 p-3 rounded-lg border border-slate-700/50">
+                                <div class="text-xs text-slate-500 mb-1">ORB High</div>
+                                <div class="text-lg font-bold text-emerald-400" id="orbHigh">--</div>
+                            </div>
+                            <div class="bg-slate-900/50 p-3 rounded-lg border border-slate-700/50">
+                                <div class="text-xs text-slate-500 mb-1">ORB Low</div>
+                                <div class="text-lg font-bold text-rose-400" id="orbLow">--</div>
+                            </div>
+                            <div class="bg-slate-900/50 p-3 rounded-lg border border-slate-700/50">
+                                <div class="text-xs text-slate-500 mb-1">Range</div>
+                                <div class="text-lg font-bold text-slate-300" id="orbRange">--</div>
+                            </div>
+                        </div>
 
-        async function runScan() {
-            const btn = document.getElementById('scanBtn');
-            const list = document.getElementById('strategyList');
-            const symbol = document.getElementById('assetSelect').value;
+                        <div id="orbStatus" class="text-center py-2 rounded bg-slate-900/50 border border-slate-700/50">
+                            <span class="text-sm text-slate-400">Waiting for ORB data...</span>
+                        </div>
+                    </div>
 
-            // Loading State
-            btn.disabled = true;
-            btn.innerHTML = `<span class="animate-spin">↻</span>`;
-            list.innerHTML = '<div class="loading-bar w-full rounded"></div><p class="text-center text-slate-500 py-4">Scanning ' + symbol + '...</p>';
+                    <!-- The "Why" Logic Grid -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
 
-            try {
-                const response = await fetch(`/api/scan?symbol=${symbol}&interval=${currentTimeframe}`);
+                        <!-- Checklist -->
+                        <div class="bg-slate-800 rounded-xl border border-slate-700 p-5 shadow-lg">
+                            <h3 class="text-white font-semibold mb-4 border-b border-slate-700 pb-2">Confluence
+                                Checklist
+                            </h3>
+                            <ul id="checklistContainer" class="space-y-3">
+                                <!-- Items injected via JS -->
+                            </ul>
+                        </div>
 
-                if (!response.ok) {
-                    const error = await response.json();
-                    throw new Error(error.message || 'API request failed');
+                        <!-- Logic Explainer -->
+                        <div class="bg-slate-800 rounded-xl border border-slate-700 p-5 shadow-lg">
+                            <h3 class="text-white font-semibold mb-4 border-b border-slate-700 pb-2">Strategy Logic</h3>
+                            <div id="logicContainer" class="space-y-3 text-sm text-slate-300">
+                                <!-- Text injected via JS -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Indicator Summary -->
+                    <div class="bg-slate-800 rounded-xl border border-slate-700 p-5 shadow-lg">
+                        <h3 class="text-white font-semibold mb-4 border-b border-slate-700 pb-2">Technical Indicators
+                        </h3>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4" id="indicatorGrid">
+                            <!-- Populated by JS -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Empty State -->
+                <div id="emptyState"
+                    class="h-full flex flex-col items-center justify-center text-slate-600 p-10 border-2 border-dashed border-slate-800 rounded-xl">
+                    <div class="text-6xl mb-4 opacity-20">📊</div>
+                    <h3 class="text-xl font-semibold text-slate-500">Awaiting Scan Results</h3>
+                    <a href="#" class="text-slate-300 hover:text-white transition-colors">Dashboard</a>
+                    <a href="#" class="text-slate-300 hover:text-white transition-colors">Portfolio</a>
+                    <p class="text-sm max-w-md text-center mt-2">Select an asset and run the scanner to analyze
+                        technical
+                        indicators across multiple strategies.</p>
+                </div>
+
+            </section>
+        </main>
+
+        <script>
+            // ============================================================================
+            // GLOBAL STATE
+            // ============================================================================
+
+            let mainChart = null;
+            let currentData = null;
+            let activeStrategyId = null;
+
+            // Mode State
+            let currentMode = 'SWING';
+            let currentTimeframe = '1d';
+
+            const MODE_CONFIG = {
+                SWING: {
+                    label: '📈 Swing Trading',
+                    timeframes: ['1d', '1wk'],
+                    defaultTimeframe: '1d',
+                    description: 'Hold 2-7 days • Daily/Weekly charts',
+                    showORB: false,
+                    showMultiTimeframe: true
+                },
+                INTRADAY: {
+                    label: '⚡ Intraday Trading',
+                    timeframes: ['15m', '1h'],
+                    defaultTimeframe: '15m',
+                    description: 'Same-day trades • 15min/1hr charts',
+                    showORB: true,
+                    showMultiTimeframe: false
                 }
+            };
 
-                currentData = await response.json();
-                console.log('Scan Result:', currentData);
+            function switchMode(mode) {
+                currentMode = mode;
+                const config = MODE_CONFIG[mode];
 
-                // Update UI
-                updateMarketState(currentData.marketState);
-                updateLocalInsights(currentData.sentiment, currentData.marketCycles);
+                // Update UI: Active tab
+                document.querySelectorAll('.mode-tab').forEach(tab => {
+                    tab.classList.toggle('active', tab.dataset.mode === mode);
+                });
 
-                // Render Strategies for this single asset
-                renderStrategyCards(currentData.signals);
+                // Update timeframe buttons
+                renderTimeframeButtons(config.timeframes);
 
-                // Auto-select the highest scoring strategy
-                if (currentData.signals.length > 0) {
-                    selectStrategy(currentData.signals[0]);
-                    renderChart();
+                // Set default timeframe for this mode
+                selectTimeframe(config.defaultTimeframe);
+
+                // Show/hide mode-specific sections
+                toggleORBSection(config.showORB);
+                toggleMultiTimeframeSection(config.showMultiTimeframe);
+            }
+
+            function renderTimeframeButtons(timeframes) {
+                const container = document.getElementById('timeframeButtons');
+                container.innerHTML = '';
+
+                timeframes.forEach(tf => {
+                    const btn = document.createElement('button');
+                    btn.className = `timeframe-btn ${tf === currentTimeframe ? 'active' : ''}`;
+                    btn.textContent = tf.toUpperCase();
+                    btn.onclick = () => selectTimeframe(tf);
+                    container.appendChild(btn);
+                });
+            }
+
+            function selectTimeframe(timeframe) {
+                currentTimeframe = timeframe;
+
+                // Update active button
+                document.querySelectorAll('.timeframe-btn').forEach(btn => {
+                    btn.classList.toggle('active', btn.textContent === timeframe.toUpperCase());
+                });
+
+                // Re-fetch data if we have a symbol selected
+                // But don't auto-run on initial load if no symbol is active?
+                // For now, we can just let the user click scan, or auto-scan if they are already viewing something.
+                // Let's auto-scan if we have data loaded.
+                if (currentData) {
+                    runScan();
                 }
+            }
 
-            } catch (error) {
-                console.error('Scan Error:', error);
-                list.innerHTML = `
+            function toggleORBSection(show) {
+                const orbSection = document.getElementById('orbSection');
+                if (orbSection) {
+                    orbSection.style.display = show ? 'block' : 'none';
+                }
+            }
+
+            function toggleMultiTimeframeSection(show) {
+                // The trend context section is the first child of the Analysis Grid
+                // We can target it by ID if we added one, or by structure.
+                // Let's add an ID to the trend context section in the HTML first?
+                // Or just select it. It's the div containing "Multi-Timeframe Alignment".
+                // Actually, let's just find it by content for now or assume it's the first one.
+                // Better: Let's assume I'll add an ID to it or just leave it for now.
+                // Wait, I can select it via the header structure.
+                // Let's just use a query selector for now.
+                const mtfHeader = Array.from(document.querySelectorAll('h3')).find(el => el.textContent.includes('Multi-Timeframe Alignment'));
+                if (mtfHeader) {
+                    const section = mtfHeader.closest('.bg-slate-900\\/50'); // Escaping slash
+                    if (section) section.style.display = show ? 'block' : 'none';
+                }
+            }
+
+            // ============================================================================
+            // API COMMUNICATION
+            // ============================================================================
+
+            async function runScan() {
+                const btn = document.getElementById('scanBtn');
+                const list = document.getElementById('strategyList');
+                const symbol = document.getElementById('assetSelect').value;
+
+                // Loading State
+                btn.disabled = true;
+                btn.innerHTML = `<span class="animate-spin">↻</span>`;
+                list.innerHTML = '<div class="loading-bar w-full rounded"></div><p class="text-center text-slate-500 py-4">Scanning ' + symbol + '...</p>';
+
+                try {
+                    const response = await fetch(`/api/scan?symbol=${symbol}&interval=${currentTimeframe}`);
+
+                    if (!response.ok) {
+                        const error = await response.json();
+                        throw new Error(error.message || 'API request failed');
+                    }
+
+                    currentData = await response.json();
+                    console.log('Scan Result:', currentData);
+
+                    // Update UI
+                    updateMarketState(currentData.marketState);
+                    updateLocalInsights(currentData.sentiment, currentData.marketCycles);
+
+                    // Render Strategies for this single asset
+                    renderStrategyCards(currentData.signals);
+
+                    // Auto-select the highest scoring strategy
+                    if (currentData.signals.length > 0) {
+                        selectStrategy(currentData.signals[0]);
+                        renderChart();
+                    }
+
+                } catch (error) {
+                    console.error('Scan Error:', error);
+                    list.innerHTML = `
                     <div class="bg-rose-500/10 border border-rose-500/30 rounded-lg p-4 text-rose-400 text-sm">
                         <strong>Error:</strong> ${error.message}
                     </div>
                 `;
-            } finally {
-                btn.disabled = false;
-                btn.innerHTML = `🔍`;
-            }
-        }
-
-        async function scanWatchlist() {
-            const btn = document.getElementById('scanWatchlistBtn');
-            const list = document.getElementById('strategyList');
-
-            // Fetch Watchlist first
-            const res = await fetch('/api/watchlist');
-            const watchlist = await res.json();
-
-            if (watchlist.length === 0) {
-                alert('Watchlist is empty! Add some symbols first.');
-                return;
+                } finally {
+                    btn.disabled = false;
+                    btn.innerHTML = `🔍`;
+                }
             }
 
-            const symbols = watchlist.map(w => w.symbol);
+            // ============================================================================
+            // UI UPDATES
+            // ============================================================================
 
-            // Loading State
-            btn.disabled = true;
-            btn.innerHTML = `<span class="animate-spin">↻</span> Scanning...`;
-            list.innerHTML = '<div class="loading-bar w-full rounded"></div><p class="text-center text-slate-500 py-4">Analyzing ' + symbols.length + ' assets...</p>';
+            function updateMarketState(state) {
+                // Update VIX
+                const vixEl = document.getElementById('vixValue');
+                if (state.vix !== undefined) {
+                    const vixColor = state.vix > 25 ? 'text-rose-400' : state.vix > 20 ? 'text-amber-400' : 'text-emerald-400';
+                    vixEl.className = `font-mono ${vixColor}`;
+                    vixEl.textContent = state.vix.toFixed(2);
+                } else {
+                    vixEl.textContent = '--';
+                }
 
-            try {
-                const response = await fetch('/api/scan/batch', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        symbols,
-                        interval: currentTimeframe
-                    })
+                // Update Market Regime Badge
+                const regimeEl = document.getElementById('marketRegime');
+                const colorMap = {
+                    emerald: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
+                    amber: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
+                    rose: 'bg-rose-500/10 text-rose-400 border-rose-500/20'
+                };
+                regimeEl.className = `px-2 py-1 rounded font-medium border ${colorMap[state.regimeColor] || colorMap.amber}`;
+                regimeEl.textContent = state.marketRegime || 'Loading...';
 
-                });
-
-                if (!response.ok) throw new Error('Batch scan failed');
-
-                const results = await response.json();
-                renderOpportunities(results);
-
-            } catch (error) {
-                console.error('Batch Scan Error:', error);
-                list.innerHTML = `<div class="text-rose-500 text-center p-4">Scan failed: ${error.message}</div>`;
-            } finally {
-                btn.disabled = false;
-                btn.innerHTML = `<span>⚡</span> Scan Watchlist`;
-            }
-        }
-
-        // ============================================================================
-        // UI UPDATES
-        // ============================================================================
-
-        function updateMarketState(state) {
-            // Update VIX
-            const vixEl = document.getElementById('vixValue');
-            const vixColor = state.vix > 25 ? 'text-rose-400' : state.vix > 20 ? 'text-amber-400' : 'text-emerald-400';
-            vixEl.className = `font-mono ${vixColor}`;
-            vixEl.textContent = `${state.vix?.toFixed(2) || '--'} (${state.marketRegime})`;
-
-            // Update Market Regime Badge
-            const regimeEl = document.getElementById('marketRegime');
-            const colorMap = {
-                emerald: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
-                amber: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
-                rose: 'bg-rose-500/10 text-rose-400 border-rose-500/20'
-            };
-            regimeEl.className = `px-2 py-1 rounded font-medium border ${colorMap[state.regimeColor] || colorMap.amber}`;
-            regimeEl.textContent = state.marketRegime;
-
-            // Update GEX
-            const gexEl = document.getElementById('gexValue');
-            if (state.gex !== undefined) {
-                const gexVal = state.gex;
-                const gexColor = gexVal > 0 ? 'text-emerald-400' : 'text-rose-400';
-                gexEl.className = `font-mono ${gexColor}`;
-                gexEl.textContent = `$${gexVal.toFixed(2)}B`;
-            } else {
-                gexEl.textContent = '--';
-            }
-        }
-
-        function updateLocalInsights(sentiment, cycles) {
-            // Update AI Sentiment
-            const sentimentEl = document.getElementById('aiSentiment');
-            // Check for combined_analysis (from local API) or fallback to summary
-            const summaryText = sentiment?.combined_analysis || sentiment?.summary;
-
-            if (summaryText) {
-                // Simple markdown parsing for bold text
-                const formattedText = summaryText.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
-                sentimentEl.innerHTML = formattedText;
-                sentimentEl.classList.add('leading-relaxed'); // Add line height for readability
-            } else {
-                sentimentEl.textContent = 'No sentiment data available.';
+                // Update GEX
+                const gexEl = document.getElementById('gexValue');
+                if (state.gex !== undefined) {
+                    const gexVal = state.gex;
+                    const gexColor = gexVal > 0 ? 'text-emerald-400' : 'text-rose-400';
+                    gexEl.className = `font-mono ${gexColor}`;
+                    gexEl.textContent = gexVal.toFixed(2);
+                } else {
+                    gexEl.textContent = '--';
+                }
             }
 
 
-        }
+            function updateLocalInsights(sentiment, cycles) {
+                // Update AI Sentiment
+                const sentimentEl = document.getElementById('aiSentiment');
+                // Check for combined_analysis (from local API) or fallback to summary
+                const summaryText = sentiment?.combined_analysis || sentiment?.summary;
 
-        function renderStrategyCards(signals) {
-            const list = document.getElementById('strategyList');
-            list.innerHTML = '<div class="text-xs text-slate-500 uppercase font-bold mb-2 px-1">Strategies for ' + currentData.symbol + '</div>';
+                if (summaryText) {
+                    // Simple markdown parsing for bold text
+                    const formattedText = summaryText.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
+                    sentimentEl.innerHTML = formattedText;
+                    sentimentEl.classList.add('leading-relaxed'); // Add line height for readability
+                } else {
+                    sentimentEl.textContent = 'No sentiment data available.';
+                }
 
-            signals.forEach((strategy) => {
-                const card = document.createElement('div');
-                card.className = `strategy-card bg-slate-800 border border-slate-700 p-3 rounded-lg cursor-pointer hover:border-indigo-500 group relative overflow-hidden mb-2`;
-                card.dataset.strategyId = strategy.id;
-                card.onclick = () => selectStrategy(strategy);
 
-                let scoreColor = 'text-slate-400';
-                if (strategy.score >= 67) scoreColor = 'text-emerald-400';
-                else if (strategy.score >= 34) scoreColor = 'text-amber-400';
+            }
 
-                // Calculate confluence
-                const metCriteria = strategy.criteria.filter(c => c.met).length;
-                const totalCriteria = strategy.criteria.length;
-                const confluencePercent = (metCriteria / totalCriteria) * 100;
+            function renderStrategyCards(signals) {
+                const list = document.getElementById('strategyList');
+                list.innerHTML = '<div class="text-xs text-slate-500 uppercase font-bold mb-2 px-1">Strategies for ' + currentData.symbol + '</div>';
 
-                let confluenceColor = 'bg-slate-500/20 text-slate-400 border-slate-500/30';
-                if (confluencePercent >= 80) confluenceColor = 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30';
-                else if (confluencePercent >= 60) confluenceColor = 'bg-amber-500/20 text-amber-400 border-amber-500/30';
+                signals.forEach((strategy) => {
+                    const card = document.createElement('div');
+                    card.className = `strategy-card bg-slate-800 border border-slate-700 p-3 rounded-lg cursor-pointer hover:border-indigo-500 group relative overflow-hidden mb-2`;
+                    card.dataset.strategyId = strategy.id;
+                    card.onclick = () => selectStrategy(strategy);
 
-                card.innerHTML = `
+                    let scoreColor = 'text-slate-400';
+                    if (strategy.score >= 67) scoreColor = 'text-emerald-400';
+                    else if (strategy.score >= 34) scoreColor = 'text-amber-400';
+
+                    // Calculate confluence
+                    const metCriteria = strategy.criteria.filter(c => c.met).length;
+                    const totalCriteria = strategy.criteria.length;
+                    const confluencePercent = (metCriteria / totalCriteria) * 100;
+
+                    let confluenceColor = 'bg-slate-500/20 text-slate-400 border-slate-500/30';
+                    if (confluencePercent >= 80) confluenceColor = 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30';
+                    else if (confluencePercent >= 60) confluenceColor = 'bg-amber-500/20 text-amber-400 border-amber-500/30';
+
+                    card.innerHTML = `
                     <div class="flex justify-between items-center">
                         <div>
                             <h3 class="text-white font-semibold text-sm">${strategy.name}</h3>
@@ -852,127 +812,86 @@
                         <div class="h-full bg-${strategy.color}-500" style="width: ${strategy.score}%"></div>
                     </div>
                 `;
-                list.appendChild(card);
-            });
-        }
-
-
-        function renderOpportunities(results) {
-            const list = document.getElementById('strategyList');
-            list.innerHTML = '';
-
-            if (results.length === 0) {
-                list.innerHTML = '<div class="text-center text-slate-500 py-4">No opportunities found.</div>';
-                return;
+                    list.appendChild(card);
+                });
             }
 
-            results.forEach(opp => {
-                const card = document.createElement('div');
-                card.className = `bg-slate-800 border border-slate-700 p-3 rounded-lg cursor-pointer hover:border-emerald-500 group transition-all mb-2`;
-                card.onclick = () => loadSymbol(opp.symbol);
 
-                let scoreColor = 'text-slate-400';
-                if (opp.score >= 67) scoreColor = 'text-emerald-400';
-                else if (opp.score >= 34) scoreColor = 'text-amber-400';
+            function selectStrategy(strategy) {
+                activeStrategyId = strategy.id;
 
-                card.innerHTML = `
-                    <div class="flex justify-between items-center">
-                        <div class="flex items-center gap-3">
-                            <span class="font-bold text-white text-lg">${opp.symbol}</span>
-                            <span class="text-xs px-2 py-0.5 rounded bg-${opp.color}-500/10 text-${opp.color}-400 border border-${opp.color}-500/20 font-mono">
-                                ${opp.signal}
-                            </span>
-                        </div>
-                        <div class="text-right">
-                            <span class="block text-lg font-bold ${scoreColor}">${opp.score}%</span>
-                        </div>
-                    </div>
-                    <div class="flex justify-between items-center mt-2 text-xs text-slate-500">
-                        <span>${opp.strategy}</span>
-                        <span class="${opp.changePercent >= 0 ? 'text-emerald-400' : 'text-rose-400'}">
-                            ${opp.changePercent >= 0 ? '+' : ''}${opp.changePercent.toFixed(2)}%
-                        </span>
-                    </div>
-                `;
-                list.appendChild(card);
-            });
-        }
+                // Update card styling
+                document.querySelectorAll('.strategy-card').forEach(card => {
+                    card.classList.remove('ring-2', 'ring-indigo-500');
+                    if (card.dataset.strategyId === strategy.id) {
+                        card.classList.add('ring-2', 'ring-indigo-500');
+                    }
+                });
 
-        function selectStrategy(strategy) {
-            activeStrategyId = strategy.id;
+                // Show analysis panel
+                document.getElementById('emptyState').classList.add('hidden');
+                const panel = document.getElementById('analysisPanel');
+                panel.classList.remove('hidden');
+                panel.classList.add('flex');
 
-            // Update card styling
-            document.querySelectorAll('.strategy-card').forEach(card => {
-                card.classList.remove('ring-2', 'ring-indigo-500');
-                if (card.dataset.strategyId === strategy.id) {
-                    card.classList.add('ring-2', 'ring-indigo-500');
+                // Populate header
+                document.getElementById('detailTitle').textContent = strategy.name;
+                document.getElementById('detailDesc').textContent = strategy.description;
+                document.getElementById('detailAsset').textContent = currentData.symbol;
+                document.getElementById('detailPrice').textContent = `$${currentData.marketState.price?.toFixed(2) || '0.00'} `;
+
+                // Badge
+                const badge = document.getElementById('detailBadge');
+                badge.textContent = strategy.signal;
+                const colorClass = {
+                    emerald: 'bg-emerald-500 text-slate-900',
+                    amber: 'bg-amber-500 text-slate-900',
+                    slate: 'bg-slate-500 text-white'
+                };
+                badge.className = `px - 2 py - 0.5 rounded text - xs font - bold uppercase tracking - wide ${colorClass[strategy.color] || colorClass.slate} `;
+
+                // Score animation
+                const scoreEl = document.getElementById('detailScore');
+                const scoreColorClass = {
+                    emerald: 'text-emerald-400',
+                    amber: 'text-amber-400',
+                    slate: 'text-slate-400'
+                };
+                scoreEl.className = `text - 2xl font - bold ${scoreColorClass[strategy.color] || scoreColorClass.slate} `;
+                animateValue(scoreEl, 0, strategy.score, 800);
+
+                // Confluence Badge
+                const metCriteria = strategy.criteria.filter(c => c.met).length;
+                const totalCriteria = strategy.criteria.length;
+                const confluencePercent = (metCriteria / totalCriteria) * 100;
+
+                const confluenceBadge = document.getElementById('confluenceBadge');
+                const confluenceText = document.getElementById('confluenceText');
+                confluenceText.textContent = `${metCriteria}/${totalCriteria} Confluence`;
+
+                let confluenceColor = 'bg-slate-500/20 text-slate-400 border-slate-500/30';
+                if (confluencePercent >= 80) confluenceColor = 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30';
+                else if (confluencePercent >= 60) confluenceColor = 'bg-amber-500/20 text-amber-400 border-amber-500/30';
+                confluenceBadge.className = `px-2 py-1 rounded text-xs font-bold border ${confluenceColor}`;
+
+
+                // Score circle (optional element - may not exist in UI)
+                const circle = document.getElementById('scoreCircle');
+                if (circle) {
+                    const strokeColors = { emerald: '#10b981', amber: '#fbbf24', slate: '#64748b' };
+                    circle.setAttribute('stroke', strokeColors[strategy.color] || strokeColors.slate);
+                    const offset = 125.6 - (125.6 * (strategy.score / 100));
+                    setTimeout(() => { circle.style.strokeDashoffset = offset; }, 100);
                 }
-            });
 
-            // Show analysis panel
-            document.getElementById('emptyState').classList.add('hidden');
-            const panel = document.getElementById('analysisPanel');
-            panel.classList.remove('hidden');
-            panel.classList.add('flex');
-
-            // Populate header
-            document.getElementById('detailTitle').textContent = strategy.name;
-            document.getElementById('detailDesc').textContent = strategy.description;
-            document.getElementById('detailAsset').textContent = currentData.symbol;
-            document.getElementById('detailPrice').textContent = `$${currentData.marketState.price?.toFixed(2) || '0.00'}`;
-
-            // Badge
-            const badge = document.getElementById('detailBadge');
-            badge.textContent = strategy.signal;
-            const colorClass = {
-                emerald: 'bg-emerald-500 text-slate-900',
-                amber: 'bg-amber-500 text-slate-900',
-                slate: 'bg-slate-500 text-white'
-            };
-            badge.className = `px-2 py-0.5 rounded text-xs font-bold uppercase tracking-wide ${colorClass[strategy.color] || colorClass.slate}`;
-
-            // Score animation
-            const scoreEl = document.getElementById('detailScore');
-            const scoreColorClass = {
-                emerald: 'text-emerald-400',
-                amber: 'text-amber-400',
-                slate: 'text-slate-400'
-            };
-            scoreEl.className = `text-2xl font-bold ${scoreColorClass[strategy.color] || scoreColorClass.slate}`;
-            animateValue(scoreEl, 0, strategy.score, 800);
-
-            // Confluence Badge
-            const metCriteria = strategy.criteria.filter(c => c.met).length;
-            const totalCriteria = strategy.criteria.length;
-            const confluencePercent = (metCriteria / totalCriteria) * 100;
-
-            const confluenceBadge = document.getElementById('confluenceBadge');
-            const confluenceText = document.getElementById('confluenceText');
-            confluenceText.textContent = `${metCriteria}/${totalCriteria} Confluence`;
-
-            let confluenceColor = 'bg-slate-500/20 text-slate-400 border-slate-500/30';
-            if (confluencePercent >= 80) confluenceColor = 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30';
-            else if (confluencePercent >= 60) confluenceColor = 'bg-amber-500/20 text-amber-400 border-amber-500/30';
-            confluenceBadge.className = `px-2 py-1 rounded text-xs font-bold border ${confluenceColor}`;
-
-
-            // Score circle (optional element - may not exist in UI)
-            const circle = document.getElementById('scoreCircle');
-            if (circle) {
-                const strokeColors = { emerald: '#10b981', amber: '#fbbf24', slate: '#64748b' };
-                circle.setAttribute('stroke', strokeColors[strategy.color] || strokeColors.slate);
-                const offset = 125.6 - (125.6 * (strategy.score / 100));
-                setTimeout(() => { circle.style.strokeDashoffset = offset; }, 100);
-            }
-
-            // Checklist
-            const checkList = document.getElementById('checklistContainer');
-            checkList.innerHTML = '';
-            strategy.criteria.forEach(criterion => {
-                const li = document.createElement('li');
-                li.className = 'flex items-start gap-3';
-                const icon = criterion.met ? '✅' : '❌';
-                li.innerHTML = `
+                // Checklist
+                const checkList = document.getElementById('checklistContainer');
+                checkList.innerHTML = '';
+                strategy.criteria.forEach(criterion => {
+                    const li = document.createElement('li');
+                    li.className = 'flex items-start gap-3';
+                    const icon = criterion.met ? '✅' : '❌';
+                    li.innerHTML = `
                     <span class="mt-0.5 text-sm">${icon}</span>
                     <div class="flex-1">
                         <div class="flex justify-between items-start">
@@ -982,42 +901,42 @@
                         <span class="block text-xs text-slate-500">${criterion.description}</span>
                     </div>
                 `;
-                checkList.appendChild(li);
-            });
+                    checkList.appendChild(li);
+                });
 
-            // Trade Setup (Entry, Stop, Target)
-            if (strategy.setup) {
-                document.getElementById('setupEntry').textContent = `$${strategy.setup.entryZone.toFixed(2)}`;
-                document.getElementById('setupStop').textContent = `$${strategy.setup.stopLoss.toFixed(2)}`;
-                document.getElementById('setupTarget').textContent = `$${strategy.setup.target.toFixed(2)}`;
+                // Trade Setup (Entry, Stop, Target)
+                if (strategy.setup) {
+                    document.getElementById('setupEntry').textContent = `$${strategy.setup.entryZone.toFixed(2)}`;
+                    document.getElementById('setupStop').textContent = `$${strategy.setup.stopLoss.toFixed(2)}`;
+                    document.getElementById('setupTarget').textContent = `$${strategy.setup.target.toFixed(2)}`;
 
-                // Kelly Recommendation
-                const kelly = strategy.setup.kellyRecommendation;
-                if (kelly) {
-                    document.getElementById('setupShares').innerHTML = `
+                    // Kelly Recommendation
+                    const kelly = strategy.setup.kellyRecommendation;
+                    if (kelly) {
+                        document.getElementById('setupShares').innerHTML = `
                         ${strategy.setup.shares} <span class="text-xs text-slate-500 block">(${kelly.percentage}% Kelly)</span>
                     `;
+                    } else {
+                        document.getElementById('setupShares').textContent = `${strategy.setup.shares} shares`;
+                    }
                 } else {
-                    document.getElementById('setupShares').textContent = `${strategy.setup.shares} shares`;
+                    document.getElementById('setupEntry').textContent = '--';
+                    document.getElementById('setupStop').textContent = '--';
+                    document.getElementById('setupTarget').textContent = '--';
                 }
-            } else {
-                document.getElementById('setupEntry').textContent = '--';
-                document.getElementById('setupStop').textContent = '--';
-                document.getElementById('setupTarget').textContent = '--';
-            }
 
-            // Education
-            const logicDiv = document.getElementById('logicContainer');
-            logicDiv.innerHTML = `
+                // Education
+                const logicDiv = document.getElementById('logicContainer');
+                logicDiv.innerHTML = `
                 <p class="leading-relaxed mb-3">${strategy.education}</p>
                 <div class="bg-indigo-900/20 border border-indigo-500/30 p-3 rounded text-xs text-indigo-300">
                     <strong>💡 Pro Tip:</strong> Always verify technical signals with upcoming earnings dates and macro-economic news before entering a position.
                 </div>
             `;
 
-            // Indicator Grid
-            const indicatorGrid = document.getElementById('indicatorGrid');
-            indicatorGrid.innerHTML = `
+                // Indicator Grid
+                const indicatorGrid = document.getElementById('indicatorGrid');
+                indicatorGrid.innerHTML = `
                 <div class="bg-slate-900/50 p-3 rounded-lg">
                     <div class="text-xs text-slate-500 uppercase">RSI (14)</div>
                     <div class="text-lg font-bold ${currentData.indicators.rsi < 30 ? 'text-rose-400' : currentData.indicators.rsi > 70 ? 'text-emerald-400' : 'text-slate-200'}">${currentData.indicators.rsi?.toFixed(1) || '--'}</div>
@@ -1036,431 +955,454 @@
                 </div>
             `;
 
-            // Render chart
-            renderChart();
+                // Render chart
+                renderChart();
 
-            // Fetch Professional Data
-            fetchProfessionalData(currentData.symbol);
+                // Fetch Professional Data
+                fetchProfessionalData(currentData.symbol);
 
-            // Update ORB Section (Intraday Only)
-            if (strategy.name === 'Opening Range Breakout') {
-                updateORBSection(strategy);
-            }
-        }
-
-        function updateORBSection(strategy) {
-            if (strategy.orHigh) document.getElementById('orbHigh').textContent = `$${strategy.orHigh.toFixed(2)}`;
-            if (strategy.orLow) document.getElementById('orbLow').textContent = `$${strategy.orLow.toFixed(2)}`;
-            if (strategy.orRange) document.getElementById('orbRange').textContent = `$${strategy.orRange.toFixed(2)}`;
-
-            const statusEl = document.getElementById('orbStatus');
-            if (strategy.signal === 'BUY') {
-                statusEl.innerHTML = '<span class="text-emerald-400 font-bold">✅ BREAKOUT ABOVE ORB</span>';
-                statusEl.className = 'text-center py-2 rounded bg-emerald-500/10 border border-emerald-500/30';
-            } else if (strategy.signal === 'SELL') {
-                statusEl.innerHTML = '<span class="text-rose-400 font-bold">⬇️ BREAKDOWN BELOW ORB</span>';
-                statusEl.className = 'text-center py-2 rounded bg-rose-500/10 border border-rose-500/30';
-            } else {
-                statusEl.innerHTML = '<span class="text-slate-400">⏳ Price within Opening Range</span>';
-                statusEl.className = 'text-center py-2 rounded bg-slate-900/50 border border-slate-700/50';
-            }
-        }
-
-        async function fetchProfessionalData(symbol) {
-            try {
-                // Reset UI
-                document.getElementById('trendDaily').textContent = '...';
-                document.getElementById('trendWeekly').textContent = '...';
-                document.getElementById('trendMonthly').textContent = '...';
-
-                const res = await fetch(`/api/analyze/multi/${symbol}`);
-                const data = await res.json();
-
-                if (data.error) throw new Error(data.error);
-
-                // Update Trend with Badge Colors
-                const trendColor = { 'UP': 'text-emerald-400', 'DOWN': 'text-rose-400', 'NEUTRAL': 'text-slate-400', '↑': 'text-emerald-400', '↓': 'text-rose-400', '→': 'text-slate-400' };
-                const badgeColors = {
-                    'UP': 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
-                    'DOWN': 'bg-rose-500/20 text-rose-400 border-rose-500/30',
-                    'NEUTRAL': 'bg-slate-500/20 text-slate-400 border-slate-500/30',
-                    '↑': 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
-                    '↓': 'bg-rose-500/20 text-rose-400 border-rose-500/30',
-                    '→': 'bg-slate-500/20 text-slate-400 border-slate-500/30'
-                };
-
-                const dEl = document.getElementById('trendDaily');
-                dEl.textContent = data.trend.daily;
-                dEl.className = `font-mono font-bold text-sm ${trendColor[data.trend.daily] || 'text-slate-400'}`;
-                document.getElementById('dailyBadge').className = `px-3 py-2 rounded text-xs font-bold border ${badgeColors[data.trend.daily] || badgeColors.NEUTRAL}`;
-
-                const wEl = document.getElementById('trendWeekly');
-                wEl.textContent = data.trend.weekly;
-                wEl.className = `font-mono font-bold text-sm ${trendColor[data.trend.weekly] || 'text-slate-400'}`;
-                document.getElementById('weeklyBadge').className = `px-3 py-2 rounded text-xs font-bold border ${badgeColors[data.trend.weekly] || badgeColors.NEUTRAL}`;
-
-                const mEl = document.getElementById('trendMonthly');
-                mEl.textContent = data.trend.monthly;
-                mEl.className = `font-mono font-bold text-sm ${trendColor[data.trend.monthly] || 'text-slate-400'}`;
-                document.getElementById('monthlyBadge').className = `px-3 py-2 rounded text-xs font-bold border ${badgeColors[data.trend.monthly] || badgeColors.NEUTRAL}`;
-
-                // Calculate Alignment Score
-                const trends = [data.trend.daily, data.trend.weekly, data.trend.monthly];
-                const normalizedTrends = trends.map(t => {
-                    if (t === 'UP' || t === '↑') return 'UP';
-                    if (t === 'DOWN' || t === '↓') return 'DOWN';
-                    return 'NEUTRAL';
-                });
-                const mostCommon = normalizedTrends.reduce((a, b, i, arr) =>
-                    arr.filter(v => v === a).length >= arr.filter(v => v === b).length ? a : b
-                );
-                const aligned = normalizedTrends.filter(t => t === mostCommon).length;
-
-                const alignmentValue = document.getElementById('alignmentValue');
-                alignmentValue.textContent = `${aligned}/3`;
-                alignmentValue.className = `font-bold text-sm ${aligned === 3 ? 'text-emerald-400' : aligned === 2 ? 'text-amber-400' : 'text-slate-400'}`;
-
-                // Update Levels
-                document.getElementById('levelPivot').textContent = data.levels.pivots.p.toFixed(2);
-                document.getElementById('levelHigh').textContent = data.levels.ohlc.prevHigh.toFixed(2);
-
-                // Smart Fib: Show nearest level
-                const currentPrice = currentData.marketState.price;
-                const fibs = data.levels.fibs;
-                let nearestLabel = 'FIB 61.8%';
-                let nearestValue = fibs.fib618;
-                let minDiff = Infinity;
-
-                const fibMap = {
-                    'FIB 23.6%': fibs.fib236,
-                    'FIB 38.2%': fibs.fib382,
-                    'FIB 50%': fibs.fib500,
-                    'FIB 61.8%': fibs.fib618,
-                    'FIB 78.6%': fibs.fib786
-                };
-
-                for (const [label, value] of Object.entries(fibMap)) {
-                    const diff = Math.abs(currentPrice - value);
-                    if (diff < minDiff) {
-                        minDiff = diff;
-                        nearestLabel = label;
-                        nearestValue = value;
-                    }
+                // Update ORB Section (Intraday Only)
+                if (strategy.name === 'Opening Range Breakout') {
+                    updateORBSection(strategy);
                 }
+            }
 
-                document.getElementById('levelFibLabel').textContent = nearestLabel;
-                document.getElementById('levelFib').textContent = nearestValue.toFixed(2);
+            function updateORBSection(strategy) {
+                if (strategy.orHigh) document.getElementById('orbHigh').textContent = `$${strategy.orHigh.toFixed(2)}`;
+                if (strategy.orLow) document.getElementById('orbLow').textContent = `$${strategy.orLow.toFixed(2)}`;
+                if (strategy.orRange) document.getElementById('orbRange').textContent = `$${strategy.orRange.toFixed(2)}`;
 
-                // Update Setup
-                if (data.setup) {
-                    document.getElementById('setupEntry').textContent = `$${data.setup.entryPrice.toFixed(2)}`;
-                    document.getElementById('setupStop').textContent = `$${data.setup.stopLoss.toFixed(2)}`;
-                    document.getElementById('setupTarget').textContent = `$${data.setup.targets.t1.toFixed(2)}`;
+                const statusEl = document.getElementById('orbStatus');
+                if (strategy.signal === 'BUY') {
+                    statusEl.innerHTML = '<span class="text-emerald-400 font-bold">✅ BREAKOUT ABOVE ORB</span>';
+                    statusEl.className = 'text-center py-2 rounded bg-emerald-500/10 border border-emerald-500/30';
+                } else if (strategy.signal === 'SELL') {
+                    statusEl.innerHTML = '<span class="text-rose-400 font-bold">⬇️ BREAKDOWN BELOW ORB</span>';
+                    statusEl.className = 'text-center py-2 rounded bg-rose-500/10 border border-rose-500/30';
+                } else {
+                    statusEl.innerHTML = '<span class="text-slate-400">⏳ Price within Opening Range</span>';
+                    statusEl.className = 'text-center py-2 rounded bg-slate-900/50 border border-slate-700/50';
+                }
+            }
 
-                    // Kelly Recommendation
-                    const kelly = data.setup.kellyRecommendation;
-                    if (kelly) {
-                        document.getElementById('setupShares').innerHTML = `
+            async function fetchProfessionalData(symbol) {
+                try {
+                    // Reset UI
+                    document.getElementById('trendDaily').textContent = '...';
+                    document.getElementById('trendWeekly').textContent = '...';
+                    document.getElementById('trendMonthly').textContent = '...';
+
+                    const res = await fetch(`/api/analyze/multi/${symbol}`);
+                    const data = await res.json();
+
+                    if (data.error) throw new Error(data.error);
+
+                    // Update Trend with Badge Colors
+                    const trendColor = { 'UP': 'text-emerald-400', 'DOWN': 'text-rose-400', 'NEUTRAL': 'text-slate-400', '↑': 'text-emerald-400', '↓': 'text-rose-400', '→': 'text-slate-400' };
+                    const badgeColors = {
+                        'UP': 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
+                        'DOWN': 'bg-rose-500/20 text-rose-400 border-rose-500/30',
+                        'NEUTRAL': 'bg-slate-500/20 text-slate-400 border-slate-500/30',
+                        '↑': 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
+                        '↓': 'bg-rose-500/20 text-rose-400 border-rose-500/30',
+                        '→': 'bg-slate-500/20 text-slate-400 border-slate-500/30'
+                    };
+
+                    const dEl = document.getElementById('trendDaily');
+                    dEl.textContent = data.trend.daily;
+                    dEl.className = `font-mono font-bold text-sm ${trendColor[data.trend.daily] || 'text-slate-400'}`;
+                    document.getElementById('dailyBadge').className = `px-3 py-2 rounded text-xs font-bold border ${badgeColors[data.trend.daily] || badgeColors.NEUTRAL}`;
+
+                    const wEl = document.getElementById('trendWeekly');
+                    wEl.textContent = data.trend.weekly;
+                    wEl.className = `font-mono font-bold text-sm ${trendColor[data.trend.weekly] || 'text-slate-400'}`;
+                    document.getElementById('weeklyBadge').className = `px-3 py-2 rounded text-xs font-bold border ${badgeColors[data.trend.weekly] || badgeColors.NEUTRAL}`;
+
+                    const mEl = document.getElementById('trendMonthly');
+                    mEl.textContent = data.trend.monthly;
+                    mEl.className = `font-mono font-bold text-sm ${trendColor[data.trend.monthly] || 'text-slate-400'}`;
+                    document.getElementById('monthlyBadge').className = `px-3 py-2 rounded text-xs font-bold border ${badgeColors[data.trend.monthly] || badgeColors.NEUTRAL}`;
+
+                    // Calculate Alignment Score
+                    const trends = [data.trend.daily, data.trend.weekly, data.trend.monthly];
+                    const normalizedTrends = trends.map(t => {
+                        if (t === 'UP' || t === '↑') return 'UP';
+                        if (t === 'DOWN' || t === '↓') return 'DOWN';
+                        return 'NEUTRAL';
+                    });
+                    const mostCommon = normalizedTrends.reduce((a, b, i, arr) =>
+                        arr.filter(v => v === a).length >= arr.filter(v => v === b).length ? a : b
+                    );
+                    const aligned = normalizedTrends.filter(t => t === mostCommon).length;
+
+                    const alignmentValue = document.getElementById('alignmentValue');
+                    alignmentValue.textContent = `${aligned}/3`;
+                    alignmentValue.className = `font-bold text-sm ${aligned === 3 ? 'text-emerald-400' : aligned === 2 ? 'text-amber-400' : 'text-slate-400'}`;
+
+                    // Update Levels
+                    document.getElementById('levelPivot').textContent = data.levels.pivots.p.toFixed(2);
+                    document.getElementById('levelHigh').textContent = data.levels.ohlc.prevHigh.toFixed(2);
+
+                    // Smart Fib: Show nearest level
+                    const currentPrice = currentData.marketState.price;
+                    const fibs = data.levels.fibs;
+                    let nearestLabel = 'FIB 61.8%';
+                    let nearestValue = fibs.fib618;
+                    let minDiff = Infinity;
+
+                    const fibMap = {
+                        'FIB 23.6%': fibs.fib236,
+                        'FIB 38.2%': fibs.fib382,
+                        'FIB 50%': fibs.fib500,
+                        'FIB 61.8%': fibs.fib618,
+                        'FIB 78.6%': fibs.fib786
+                    };
+
+                    for (const [label, value] of Object.entries(fibMap)) {
+                        const diff = Math.abs(currentPrice - value);
+                        if (diff < minDiff) {
+                            minDiff = diff;
+                            nearestLabel = label;
+                            nearestValue = value;
+                        }
+                    }
+
+                    document.getElementById('levelFibLabel').textContent = nearestLabel;
+                    document.getElementById('levelFib').textContent = nearestValue.toFixed(2);
+
+                    // Update Setup
+                    if (data.setup) {
+                        document.getElementById('setupEntry').textContent = `$${data.setup.entryPrice.toFixed(2)}`;
+                        document.getElementById('setupStop').textContent = `$${data.setup.stopLoss.toFixed(2)}`;
+                        document.getElementById('setupTarget').textContent = `$${data.setup.targets.t1.toFixed(2)}`;
+
+                        // Kelly Recommendation
+                        const kelly = data.setup.kellyRecommendation;
+                        if (kelly) {
+                            document.getElementById('setupShares').innerHTML = `
                             ${data.setup.shares} <span class="text-xs text-slate-500 block">(${kelly.percentage}% Kelly)</span>
                         `;
-                    } else {
-                        document.getElementById('setupShares').textContent = `${data.setup.shares} shares`;
-                    }
-                }
-
-            } catch (err) {
-                console.error('Pro Data Error:', err);
-            }
-        }
-
-        async function addToJournal() {
-            const note = document.getElementById('journalNote').value;
-            const emotion = document.getElementById('journalEmotion').value;
-            if (!note) return;
-
-            try {
-                await fetch('/api/journal', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        trade_id: null,
-                        note,
-                        emotion
-                    })
-                });
-                document.getElementById('journalNote').value = '';
-                alert('Entry logged!');
-            } catch (err) {
-                console.error('Journal Error:', err);
-            }
-        }
-
-        function animateValue(obj, start, end, duration) {
-            let startTimestamp = null;
-            const step = (timestamp) => {
-                if (!startTimestamp) startTimestamp = timestamp;
-                const progress = Math.min((timestamp - startTimestamp) / duration, 1);
-                obj.innerHTML = Math.floor(progress * (end - start) + start) + '%';
-                if (progress < 1) {
-                    window.requestAnimationFrame(step);
-                }
-            };
-            window.requestAnimationFrame(step);
-        }
-
-        // ============================================================================
-        // CHART RENDERING
-        // ============================================================================
-
-        function renderChart() {
-            const ctx = document.getElementById('mainChart').getContext('2d');
-
-            if (mainChart) mainChart.destroy();
-
-            const chartData = currentData.chartData;
-            const pocLine = new Array(chartData.dates.length).fill(chartData.poc);
-
-            mainChart = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: chartData.dates,
-                    datasets: [
-                        {
-                            label: 'Price',
-                            data: chartData.prices,
-                            borderColor: '#6366f1',
-                            backgroundColor: 'rgba(99, 102, 241, 0.1)',
-                            borderWidth: 2,
-                            tension: 0.3,
-                            pointRadius: 0,
-                            fill: false
-                        },
-                        {
-                            label: 'POC (Vol Profile)',
-                            data: pocLine,
-                            borderColor: '#ec4899', // Pink
-                            borderWidth: 2,
-                            borderDash: [5, 5],
-                            pointRadius: 0,
-                            fill: false
-                        },
-                        {
-                            label: 'SMA 20',
-                            data: chartData.sma20,
-                            borderColor: '#f59e0b',
-                            borderWidth: 1.5,
-                            tension: 0.3,
-                            pointRadius: 0,
-                            fill: false
-                        },
-                        {
-                            label: 'VWAP',
-                            data: chartData.vwap,
-                            borderColor: '#06b6d4',
-                            borderWidth: 1.5,
-                            borderDash: [2, 2],
-                            tension: 0.3,
-                            pointRadius: 0,
-                            fill: false
-                        },
-                        {
-                            label: 'Upper BB',
-                            data: chartData.upperBand,
-                            borderColor: 'rgba(100, 116, 139, 0.5)',
-                            borderWidth: 1,
-                            tension: 0.3,
-                            pointRadius: 0,
-                            fill: false
-                        },
-                        {
-                            label: 'Lower BB',
-                            data: chartData.lowerBand,
-                            borderColor: 'rgba(100, 116, 139, 0.5)',
-                            borderWidth: 1,
-                            tension: 0.3,
-                            pointRadius: 0,
-                            fill: '+1',
-                            backgroundColor: 'rgba(100, 116, 139, 0.05)'
+                        } else {
+                            document.getElementById('setupShares').textContent = `${data.setup.shares} shares`;
                         }
-                    ]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    interaction: {
-                        mode: 'index',
-                        intersect: false,
-                    },
-                    plugins: {
-                        legend: {
-                            display: true,
-                            labels: {
-                                color: '#94a3b8',
-                                usePointStyle: true,
-                                pointStyle: 'circle'
+                    }
+
+                } catch (err) {
+                    console.error('Pro Data Error:', err);
+                }
+            }
+
+            async function addToJournal() {
+                const note = document.getElementById('journalNote').value;
+                const emotion = document.getElementById('journalEmotion').value;
+                if (!note) return;
+
+                try {
+                    await fetch('/api/journal', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            trade_id: null,
+                            note,
+                            emotion
+                        })
+                    });
+                    document.getElementById('journalNote').value = '';
+                    alert('Entry logged!');
+                } catch (err) {
+                    console.error('Journal Error:', err);
+                }
+            }
+
+            function animateValue(obj, start, end, duration) {
+                let startTimestamp = null;
+                const step = (timestamp) => {
+                    if (!startTimestamp) startTimestamp = timestamp;
+                    const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+                    obj.innerHTML = Math.floor(progress * (end - start) + start) + '%';
+                    if (progress < 1) {
+                        window.requestAnimationFrame(step);
+                    }
+                };
+                window.requestAnimationFrame(step);
+            }
+
+            // ============================================================================
+            // CHART RENDERING
+            // ============================================================================
+
+            function renderChart() {
+                const ctx = document.getElementById('mainChart').getContext('2d');
+
+                if (mainChart) mainChart.destroy();
+
+                const chartData = currentData.chartData;
+                const pocLine = new Array(chartData.dates.length).fill(chartData.poc);
+
+                mainChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: chartData.dates,
+                        datasets: [
+                            {
+                                label: 'Price',
+                                data: chartData.prices,
+                                borderColor: '#6366f1',
+                                backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                                borderWidth: 2,
+                                tension: 0.3,
+                                pointRadius: 0,
+                                fill: false
+                            },
+                            {
+                                label: 'POC (Vol Profile)',
+                                data: pocLine,
+                                borderColor: '#ec4899', // Pink
+                                borderWidth: 2,
+                                borderDash: [5, 5],
+                                pointRadius: 0,
+                                fill: false
+                            },
+                            {
+                                label: 'SMA 20',
+                                data: chartData.sma20,
+                                borderColor: '#f59e0b',
+                                borderWidth: 1.5,
+                                tension: 0.3,
+                                pointRadius: 0,
+                                fill: false
+                            },
+                            {
+                                label: 'VWAP',
+                                data: chartData.vwap,
+                                borderColor: '#06b6d4',
+                                borderWidth: 1.5,
+                                borderDash: [2, 2],
+                                tension: 0.3,
+                                pointRadius: 0,
+                                fill: false
+                            },
+                            {
+                                label: 'Upper BB',
+                                data: chartData.upperBand,
+                                borderColor: 'rgba(100, 116, 139, 0.5)',
+                                borderWidth: 1,
+                                tension: 0.3,
+                                pointRadius: 0,
+                                fill: false
+                            },
+                            {
+                                label: 'Lower BB',
+                                data: chartData.lowerBand,
+                                borderColor: 'rgba(100, 116, 139, 0.5)',
+                                borderWidth: 1,
+                                tension: 0.3,
+                                pointRadius: 0,
+                                fill: '+1',
+                                backgroundColor: 'rgba(100, 116, 139, 0.05)'
                             }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        interaction: {
+                            mode: 'index',
+                            intersect: false,
                         },
-                        tooltip: {
-                            backgroundColor: '#1e293b',
-                            titleColor: '#fff',
-                            bodyColor: '#cbd5e1',
-                            borderColor: '#334155',
-                            borderWidth: 1,
-                            callbacks: {
-                                label: function (context) {
-                                    let label = context.dataset.label || '';
-                                    if (label) label += ': ';
-                                    if (context.parsed.y !== null) {
-                                        label += '$' + context.parsed.y.toFixed(2);
+                        plugins: {
+                            legend: {
+                                display: true,
+                                labels: {
+                                    color: '#94a3b8',
+                                    usePointStyle: true,
+                                    pointStyle: 'circle'
+                                }
+                            },
+                            tooltip: {
+                                backgroundColor: '#1e293b',
+                                titleColor: '#fff',
+                                bodyColor: '#cbd5e1',
+                                borderColor: '#334155',
+                                borderWidth: 1,
+                                callbacks: {
+                                    label: function (context) {
+                                        let label = context.dataset.label || '';
+                                        if (label) label += ': ';
+                                        if (context.parsed.y !== null) {
+                                            label += '$' + context.parsed.y.toFixed(2);
+                                        }
+                                        return label;
                                     }
-                                    return label;
                                 }
+                            },
+                            annotation: {
+                                // If we had the plugin, we'd use it here.
+                                // For now, the dataset approach is fine.
                             }
                         },
-                        annotation: {
-                            // If we had the plugin, we'd use it here.
-                            // For now, the dataset approach is fine.
-                        }
-                    },
-                    scales: {
-                        x: {
-                            grid: { color: '#334155', drawBorder: false },
-                            ticks: { color: '#64748b', maxTicksLimit: 8 }
-                        },
-                        y: {
-                            grid: { color: '#334155', drawBorder: false },
-                            ticks: {
-                                color: '#64748b',
-                                callback: function (value) {
-                                    return '$' + value.toFixed(0);
+                        scales: {
+                            x: {
+                                grid: { color: '#334155', drawBorder: false },
+                                ticks: { color: '#64748b', maxTicksLimit: 8 }
+                            },
+                            y: {
+                                grid: { color: '#334155', drawBorder: false },
+                                ticks: {
+                                    color: '#64748b',
+                                    callback: function (value) {
+                                        return '$' + value.toFixed(0);
+                                    }
                                 }
                             }
                         }
                     }
-                }
+                });
+            }
+
+            // ============================================================================
+            // EVENT LISTENERS
+            // ============================================================================
+
+            document.getElementById('scanBtn').addEventListener('click', runScan);
+
+            // Allow Enter key to trigger scan
+            document.getElementById('assetSelect').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') runScan();
             });
-        }
 
-        // ============================================================================
-        // EVENT LISTENERS
-        // ============================================================================
+            // Auto-scan on page load (optional - uncomment to enable)
+            // window.addEventListener('load', () => setTimeout(runScan, 500));
 
-        document.getElementById('scanBtn').addEventListener('click', runScan);
+            // ============================================================================
+            // WATCHLIST LOGIC
+            // ============================================================================
 
-        // Allow Enter key to trigger scan
-        document.getElementById('assetSelect').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') runScan();
-        });
+            async function fetchWatchlist() {
+                const container = document.getElementById('watchlistContainer');
+                try {
+                    const res = await fetch('/api/watchlist');
+                    const data = await res.json();
 
-        // Auto-scan on page load (optional - uncomment to enable)
-        // window.addEventListener('load', () => setTimeout(runScan, 500));
+                    container.innerHTML = '';
+                    if (data.length === 0) {
+                        container.innerHTML = '<div class="text-xs text-slate-500 text-center py-4">Watchlist empty</div>';
+                        return;
+                    }
 
-        // ============================================================================
-        // WATCHLIST LOGIC
-        // ============================================================================
-
-        async function fetchWatchlist() {
-            const container = document.getElementById('watchlistContainer');
-            try {
-                const res = await fetch('/api/watchlist');
-                const data = await res.json();
-
-                container.innerHTML = '';
-                if (data.length === 0) {
-                    container.innerHTML = '<div class="text-xs text-slate-500 text-center py-4">Watchlist empty</div>';
-                    return;
-                }
-
-                data.forEach(item => {
-                    const div = document.createElement('div');
-                    div.className = 'flex justify-between items-center bg-slate-900/50 p-2 rounded hover:bg-slate-700 transition-colors cursor-pointer group';
-                    div.innerHTML = `
+                    data.forEach(item => {
+                        const div = document.createElement('div');
+                        div.className = 'flex justify-between items-center bg-slate-900/50 p-2 rounded hover:bg-slate-700 transition-colors cursor-pointer group';
+                        div.innerHTML = `
                         <span class="font-mono text-sm text-indigo-300 font-bold" onclick="loadSymbol('${item.symbol}')">${item.symbol}</span>
                         <button onclick="removeFromWatchlist('${item.symbol}')" class="text-slate-600 hover:text-rose-400 opacity-0 group-hover:opacity-100 transition-opacity">×</button>
                     `;
-                    container.appendChild(div);
+                        container.appendChild(div);
+                    });
+                } catch (err) {
+                    console.error('Watchlist Error:', err);
+                    container.innerHTML = '<div class="text-xs text-rose-500 text-center">Failed to load</div>';
+                }
+            }
+
+            async function addToWatchlist() {
+                const input = document.getElementById('watchlistInput');
+                const symbol = input.value.trim().toUpperCase();
+                if (!symbol) return;
+
+                try {
+                    await fetch('/api/watchlist', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ symbol })
+                    });
+                    input.value = '';
+                    fetchWatchlist();
+                } catch (err) {
+                    console.error('Add Watchlist Error:', err);
+                }
+            }
+
+            async function removeFromWatchlist(symbol) {
+                try {
+                    await fetch(`/api/watchlist/${symbol}`, { method: 'DELETE' });
+                    fetchWatchlist();
+                } catch (err) {
+                    console.error('Delete Error:', err);
+                }
+            }
+
+            function loadSymbol(symbol) {
+                document.getElementById('assetSelect').value = symbol;
+                // If symbol is not in select, add it temporarily
+                const select = document.getElementById('assetSelect');
+                if (![...select.options].some(o => o.value === symbol)) {
+                    const option = new Option(symbol, symbol);
+                    select.add(option);
+                }
+                select.value = symbol;
+                runScan();
+            }
+
+            // Initialize
+            fetchWatchlist();
+            switchMode('SWING');
+
+
+
+
+
+            // ============================================================================
+            // DRAG & DROP LOGIC
+            // ============================================================================
+
+            const leftPanel = document.getElementById('leftPanel');
+
+            // Load Order
+            const savedOrder = localStorage.getItem('leftPanelOrder');
+            if (savedOrder) {
+                const order = JSON.parse(savedOrder);
+                order.forEach(id => {
+                    const el = document.querySelector(`[data-id="${id}"]`);
+                    if (el) leftPanel.appendChild(el);
                 });
-            } catch (err) {
-                console.error('Watchlist Error:', err);
-                container.innerHTML = '<div class="text-xs text-rose-500 text-center">Failed to load</div>';
             }
-        }
 
-        async function addToWatchlist() {
-            const input = document.getElementById('watchlistInput');
-            const symbol = input.value.trim().toUpperCase();
-            if (!symbol) return;
-
-            try {
-                await fetch('/api/watchlist', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ symbol })
-                });
-                input.value = '';
-                fetchWatchlist();
-            } catch (err) {
-                console.error('Add Watchlist Error:', err);
-            }
-        }
-
-        async function removeFromWatchlist(symbol) {
-            try {
-                await fetch(`/api/watchlist/${symbol}`, { method: 'DELETE' });
-                fetchWatchlist();
-            } catch (err) {
-                console.error('Delete Error:', err);
-            }
-        }
-
-        function loadSymbol(symbol) {
-            document.getElementById('assetSelect').value = symbol;
-            // If symbol is not in select, add it temporarily
-            const select = document.getElementById('assetSelect');
-            if (![...select.options].some(o => o.value === symbol)) {
-                const option = new Option(symbol, symbol);
-                select.add(option);
-            }
-            select.value = symbol;
-            runScan();
-        }
-
-        // Initialize
-        fetchWatchlist();
-        switchMode('SWING');
-
-
-
-
-
-        // ============================================================================
-        // DRAG & DROP LOGIC
-        // ============================================================================
-
-        const leftPanel = document.getElementById('leftPanel');
-
-        // Load Order
-        const savedOrder = localStorage.getItem('leftPanelOrder');
-        if (savedOrder) {
-            const order = JSON.parse(savedOrder);
-            order.forEach(id => {
-                const el = document.querySelector(`[data-id="${id}"]`);
-                if (el) leftPanel.appendChild(el);
+            // Init Sortable
+            new Sortable(leftPanel, {
+                animation: 150,
+                handle: '.cursor-move', // Drag handle
+                ghostClass: 'bg-indigo-900/20',
+                onEnd: function (evt) {
+                    const order = Array.from(leftPanel.children).map(el => el.dataset.id).filter(id => id);
+                    localStorage.setItem('leftPanelOrder', JSON.stringify(order));
+                }
             });
-        }
 
-        // Init Sortable
-        new Sortable(leftPanel, {
-            animation: 150,
-            handle: '.cursor-move', // Drag handle
-            ghostClass: 'bg-indigo-900/20',
-            onEnd: function (evt) {
-                const order = Array.from(leftPanel.children).map(el => el.dataset.id).filter(id => id);
-                localStorage.setItem('leftPanelOrder', JSON.stringify(order));
-            }
-        });
+            // ============================================================================
+            // INITIALIZATION
+            // ============================================================================
 
-    </script>
+            document.addEventListener('DOMContentLoaded', () => {
+                // Initialize Mode Buttons
+                document.querySelectorAll('.mode-tab').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        const target = e.target.closest('.mode-tab');
+                        if (target) {
+                            const mode = target.dataset.mode;
+                            console.log('Switching mode to:', mode);
+                            switchMode(mode);
+                        }
+                    });
+                });
+
+                // Initialize default mode
+                switchMode('SWING');
+
+                // Initial Watchlist Load
+                refreshWatchlist();
+            });
+        </script>
 </body>
 
 </html>

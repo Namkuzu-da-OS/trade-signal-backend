@@ -1,0 +1,154 @@
+import express from 'express';
+import db from '../database.js';
+import { validateSymbol } from '../middleware/validation.js';
+import { fetchMarketData, fetchVIX, calculateIndicators } from '../analysis.js';
+import { generateAISentiment } from '../services/ai.js';
+
+const router = express.Router();
+
+// ============================================================================
+// AUTOMATION CONTROL
+// ============================================================================
+
+router.get('/auto/status', (req, res) => {
+    if (!global.autoTrader) {
+        return res.json({ status: 'initializing', isRunning: false });
+    }
+    res.json({
+        status: global.autoTrader.isRunning ? 'running' : 'stopped',
+        isRunning: global.autoTrader.isRunning,
+        intervalMinutes: global.autoTrader.intervalMinutes,
+        lastScanTime: global.autoTrader.lastScanTime,
+        watchlistCount: global.autoTrader.watchlistCount
+    });
+});
+
+router.post('/auto/start', (req, res) => {
+    if (!global.autoTrader) return res.status(503).json({ error: 'AutoTrader not ready' });
+
+    let intervalMinutes = parseInt(req.body.intervalMinutes) || 15;
+
+    // Validate interval
+    if (intervalMinutes < 1 || intervalMinutes > 60) {
+        return res.status(400).json({
+            error: 'Invalid interval',
+            message: 'Interval must be between 1-60 minutes',
+            received: intervalMinutes
+        });
+    }
+
+    if (global.autoTrader.isRunning) {
+        return res.json({
+            message: 'Scanner is already running',
+            status: 'running',
+            intervalMinutes: global.autoTrader.intervalMinutes
+        });
+    }
+
+    const result = global.autoTrader.start(intervalMinutes);
+    res.json({
+        message: 'Multi-timeframe scanner started successfully',
+        ...result
+    });
+});
+
+router.post('/auto/stop', (req, res) => {
+    if (!global.autoTrader) return res.status(503).json({ error: 'AutoTrader not ready' });
+
+    global.autoTrader.stop();
+    res.json({
+        message: 'Scanner stopped',
+        status: 'stopped'
+    });
+});
+
+router.get('/auto/logs', (req, res) => {
+    if (!global.autoTrader) return res.json({ logs: [], totalLogs: 0 });
+
+    const limit = Math.min(parseInt(req.query.limit) || 50, 100);
+    res.json({
+        logs: global.autoTrader.activityLog.slice(0, limit),
+        totalLogs: global.autoTrader.activityLog.length
+    });
+});
+
+// ============================================================================
+// ALERTS
+// ============================================================================
+
+router.get('/alerts', (req, res) => {
+    db.all("SELECT * FROM alerts ORDER BY timestamp DESC LIMIT 50", [], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows);
+    });
+});
+
+router.post('/alerts/:id/analyze', async (req, res) => {
+    const alertId = req.params.id;
+
+    db.get("SELECT * FROM alerts WHERE id = ?", [alertId], async (err, alert) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (!alert) return res.status(404).json({ error: 'Alert not found' });
+
+        if (alert.ai_analysis) {
+            return res.json({ message: 'Analysis already exists', analysis: alert.ai_analysis });
+        }
+
+        try {
+            const { historical, quote } = await fetchMarketData(alert.symbol);
+            const indicators = calculateIndicators(historical);
+            const vix = await fetchVIX();
+
+            const strategy = {
+                name: alert.strategy,
+                score: alert.score,
+                signal: alert.signal
+            };
+
+            const marketState = {
+                price: quote.regularMarketPrice,
+                vix: vix.value,
+                gex: 0
+            };
+
+            const sentiment = await generateAISentiment(alert.symbol, indicators, strategy, marketState, null);
+            const analysis = sentiment.combined_analysis;
+
+            db.run("UPDATE alerts SET ai_analysis = ? WHERE id = ?", [analysis, alertId], (err) => {
+                if (err) return res.status(500).json({ error: err.message });
+                res.json({ message: 'Analysis generated', analysis });
+            });
+
+        } catch (error) {
+            console.error('Error generating on-demand analysis:', error);
+            res.status(500).json({ error: 'Failed to generate analysis' });
+        }
+    });
+});
+
+// ============================================================================
+// LIVE SIGNALS
+// ============================================================================
+
+router.get('/signals/live', (req, res) => {
+    db.all(`
+        SELECT * FROM live_signals 
+        ORDER BY final_score DESC, last_updated DESC
+    `, [], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows || []);
+    });
+});
+
+router.get('/signals/live/:symbol', validateSymbol, (req, res) => {
+    const { symbol } = req.params;
+    db.get(`
+        SELECT * FROM live_signals WHERE symbol = ?
+    `, [symbol.toUpperCase()], (err, row) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (!row) return res.status(404).json({ error: 'No signal found for this symbol' });
+        res.json(row);
+    });
+});
+
+export default router;
