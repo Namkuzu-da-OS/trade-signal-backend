@@ -334,6 +334,26 @@ export function scoreGoldenSetup(indicators, dailyTrend, marketState) {
     });
     if (gexAligned) score += 20;
 
+    // 6. Time of Day Filter (Avoid Lunch Chop)
+    const isLunch = isLunchChop();
+    if (isLunch) {
+        criteria.push({
+            name: 'Time of Day',
+            value: 'LUNCH CHOP',
+            met: false,
+            description: 'Avoid trading between 12:00 - 1:30 PM ET'
+        });
+        score -= 30; // Significant penalty
+    } else {
+        criteria.push({
+            name: 'Time of Day',
+            value: 'PRIME TIME',
+            met: true,
+            description: 'Trading during active hours'
+        });
+        score += 10;
+    }
+
 
     // Determine Signal
     if (score >= 80) {
@@ -364,7 +384,7 @@ export function scoreGoldenSetup(indicators, dailyTrend, marketState) {
         name: 'The Golden Setup',
         type: 'Trend Following',
         description: 'High probability trade aligned with Daily Trend + VWAP interaction.',
-        score: Math.min(score, 100),
+        score: Math.max(0, Math.min(score, 100)), // Clamp between 0-100
         signal,
         color: score >= 80 ? 'emerald' : score >= 50 ? 'amber' : 'slate',
         criteria,
@@ -456,4 +476,122 @@ export function scoreVIXFlow(indicators, vixHistory) {
         criteria,
         education: 'Analyzes the correlation between Price and VIX. Divergences often precede reversals. A falling VIX during a price drop suggests a lack of fear (Bullish), while a rising VIX during a rally suggests hedging (Bearish).'
     };
+}
+
+/**
+ * Mean Reversion (Scalping)
+ * Logic: Buy when price pierces Lower BB + RSI < 30 (Oversold)
+ *        Sell when price pierces Upper BB + RSI > 70 (Overbought)
+ */
+export function scoreMeanReversion(indicators) {
+    const { priceHistory, rsi, bb } = indicators;
+    const currentPrice = priceHistory[priceHistory.length - 1];
+
+    // Check if BB exists
+    if (!bb) {
+        return {
+            id: 'mean-reversion',
+            name: 'Mean Reversion Scalp',
+            score: 0,
+            signal: 'NEUTRAL',
+            criteria: [{ name: 'BB Data', met: false, description: 'Bollinger Bands data unavailable' }],
+            color: 'slate'
+        };
+    }
+
+    const criteria = [];
+    let score = 0;
+    let signal = 'NEUTRAL';
+
+    // 1. Bollinger Band Pierce
+    const piercedLower = currentPrice < bb.lower;
+    const piercedUpper = currentPrice > bb.upper;
+
+    if (piercedLower || piercedUpper) {
+        criteria.push({
+            name: 'Bollinger Band Pierce',
+            value: piercedLower ? 'LOWER' : 'UPPER',
+            met: true,
+            description: `Price pierced the ${piercedLower ? 'Lower' : 'Upper'} Band`
+        });
+        score += 40;
+    }
+
+    // 2. RSI Extreme
+    const isOversold = rsi < 30;
+    const isOverbought = rsi > 70;
+
+    if (isOversold || isOverbought) {
+        criteria.push({
+            name: 'RSI Extreme',
+            value: rsi.toFixed(1),
+            met: true,
+            description: isOversold ? 'Oversold (<30)' : 'Overbought (>70)'
+        });
+        score += 40;
+    }
+
+    // Determine Signal
+    // Relaxed: Either BB pierce OR RSI extreme (not both required)
+    if (piercedLower || isOversold) {
+        if (score >= 40) { // At least one strong signal
+            signal = 'SCALP BUY';
+            // Bonus if BOTH conditions met
+            if (piercedLower && isOversold) score += 20;
+        }
+    }
+    if (piercedUpper || isOverbought) {
+        if (score >= 40) {
+            signal = 'SCALP SELL';
+            if (piercedUpper && isOverbought) score += 20;
+        }
+    }
+
+    // Setup
+    let setup = null;
+    if (signal === 'SCALP BUY') {
+        setup = {
+            entryZone: currentPrice,
+            stopLoss: currentPrice * 0.995, // Tight stop
+            target: bb.middle // Target mean (SMA20)
+        };
+    } else if (signal === 'SCALP SELL') {
+        setup = {
+            entryZone: currentPrice,
+            stopLoss: currentPrice * 1.005,
+            target: bb.middle
+        };
+    }
+
+    return {
+        id: 'mean-reversion',
+        name: 'Mean Reversion Scalp',
+        type: 'Reversion',
+        description: 'Scalping reversals from extreme overbought/oversold levels.',
+        score: Math.max(0, Math.min(score, 100)), // Clamp 0-100
+        signal,
+        color: score >= 80 ? 'purple' : 'slate',
+        criteria,
+        setup
+    };
+}
+
+// Helper to check for Lunch Chop (12:00 - 13:30 ET)
+function isLunchChop() {
+    try {
+        const now = new Date();
+        const etTime = new Date(now.toLocaleString("en-US", { timeZone: "America/New_York" }));
+        const hour = etTime.getHours();
+        const minute = etTime.getMinutes();
+
+        // 12:00 to 13:30 ET
+        if (hour === 12) return true;
+        if (hour === 13 && minute < 30) return true;
+        return false;
+    } catch (error) {
+        // Fallback: If timezone conversion fails, assume it's NOT lunch
+        // Better to trade than to miss opportunities
+        console.warn('Failed to determine ET timezone:', error.message);
+        return false;
+    }
 }

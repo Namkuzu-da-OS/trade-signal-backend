@@ -3,23 +3,26 @@ import yahooFinance from 'yahoo-finance2';
 import axios from 'axios';
 import CONFIG from '../config.js';
 import {
-    calculateVolumeProfile,
+    scoreOpeningRangeBreakout,
+    scoreVWAPBounce,
+    scoreGoldenSetup,
+    scoreVIXFlow,
+    scoreMeanReversion
+} from '../strategies/intraday.js';
+import { scoreSwingPullback } from '../strategies/swing.js';
+import { detectMarketRegime } from '../services/marketRegime.js';
+import {
     scoreInstitutionalTrend,
     scoreVolatilitySqueeze,
     scorePanicReversion,
     scoreEMAMomentumConfluence,
     scoreVolatilityBreakoutEnhanced,
     scoreVWAPMeanReversion,
-    calculateGEX,
     scoreGammaExposure,
-    scoreVIXReversion
+    scoreVIXReversion,
+    calculateVolumeProfile,
+    calculateGEX
 } from '../strategies.js';
-import {
-    scoreOpeningRangeBreakout,
-    scoreVWAPBounce,
-    scoreGoldenSetup,
-    scoreVIXFlow
-} from '../strategies/intraday.js';
 import {
     fetchDataForInterval,
     fetchVIX,
@@ -36,7 +39,7 @@ const router = express.Router();
 // Helper functions for external data
 async function fetchLocalSentiment() {
     try {
-        const response = await axios.get(`${CONFIG.LOCAL_API_URL}/api/x/analyze/combined`);
+        const response = await axios.get(`${CONFIG.LOCAL_API_URL} /api/x / analyze / combined`);
         return response.data;
     } catch (error) {
         console.error('Error fetching local sentiment:', error.message);
@@ -46,7 +49,7 @@ async function fetchLocalSentiment() {
 
 async function fetchMarketCycles() {
     try {
-        const response = await axios.get(`${CONFIG.LOCAL_API_URL}/api/cycles/active`);
+        const response = await axios.get(`${CONFIG.LOCAL_API_URL} /api/cycles / active`);
         return response.data;
     } catch (error) {
         console.error('Error fetching market cycles:', error.message);
@@ -66,7 +69,7 @@ function validateSymbol(req, res, next) {
     if (!/^[A-Z0-9-]{1,12}(\.[A-Z]{1,2})?$/.test(symbol.toUpperCase())) {
         return res.status(400).json({
             error: 'Invalid symbol format',
-            message: `"${symbol}" is not a valid ticker symbol. Symbols must be 1-12 characters (e.g., SPY, BTC-USD).`
+            message: `"${symbol}" is not a valid ticker symbol.Symbols must be 1 - 12 characters(e.g., SPY, BTC - USD).`
         });
     }
     if (req.query.symbol) req.query.symbol = symbol.toUpperCase();
@@ -81,7 +84,7 @@ function validateInterval(req, res, next) {
     if (interval && !validIntervals.includes(interval)) {
         return res.status(400).json({
             error: 'Invalid interval',
-            message: `Interval must be one of: ${validIntervals.join(', ')}`,
+            message: `Interval must be one of: ${validIntervals.join(', ')} `,
             received: interval
         });
     }
@@ -138,7 +141,7 @@ router.get('/', validateSymbol, validateInterval, async (req, res) => {
         if (!historical || historical.length < 50) {
             return res.status(400).json({
                 error: 'Insufficient historical data',
-                message: `Need at least 50 candles, got ${historical?.length || 0}`
+                message: `Need at least 50 candles, got ${historical?.length || 0} `
             });
         }
 
@@ -152,11 +155,17 @@ router.get('/', validateSymbol, validateInterval, async (req, res) => {
                 gexData = calculateGEX(allOptions, currentPrice);
             }
         } catch (optErr) {
-            console.warn(`[SCAN] Options data failed for ${symbol}: ${optErr.message}`);
+            console.warn(`[SCAN] Options data failed for ${symbol}: ${optErr.message} `);
         }
 
         const indicators = calculateIndicators(historical);
         const vp = calculateVolumeProfile(historical, 50);
+
+        // Detect Market Regime
+        const regimeResult = detectMarketRegime(indicators, { vix: vix.value });
+        let marketRegime = regimeResult.regime;
+        let regimeColor = marketRegime.includes('TRENDING') ? 'green' :
+            marketRegime === 'VOLATILE' ? 'red' : 'yellow';
 
         let dailyTrend = { bullish: false, bearish: false };
         if (dailyData && dailyData.length > 20) {
@@ -172,14 +181,17 @@ router.get('/', validateSymbol, validateInterval, async (req, res) => {
             signals = [
                 scoreOpeningRangeBreakout(indicators, quote),
                 scoreVWAPBounce(indicators),
-                scoreGoldenSetup(indicators, dailyTrend, { gex: gexData.val })
+                scoreGoldenSetup(indicators, dailyTrend, { gex: gexData.val }),
+                scoreMeanReversion(indicators) // New Strategy
             ];
             if (['SPY', 'QQQ', 'IWM'].includes(symbol)) {
                 const vixData = await fetchVIX('15m');
                 signals.push(scoreVIXFlow(indicators, vixData.historical));
             }
         } else {
+            // Daily/Swing Strategies
             signals = [
+                scoreSwingPullback(indicators, { vix: vix.value }), // New Strategy
                 scoreInstitutionalTrend(indicators, vix),
                 scoreVolatilitySqueeze(indicators, vix),
                 scorePanicReversion(indicators, vix),
@@ -196,8 +208,9 @@ router.get('/', validateSymbol, validateInterval, async (req, res) => {
 
         signals.sort((a, b) => b.score - a.score);
 
-        let marketRegime = 'Normal';
-        let regimeColor = 'amber';
+        // Filter signals based on Regime Recommendations (Optional, but good for quality)
+        // For now, we just pass the regime info to the frontend
+
         if (vix.value < CONFIG.VIX_LOW_VOLATILITY) {
             marketRegime = 'Low Volatility';
             regimeColor = 'emerald';
@@ -264,11 +277,11 @@ router.get('/', validateSymbol, validateInterval, async (req, res) => {
             response.sentiment = sentimentData;
         }
 
-        console.log(`[SCAN] Success - ${symbol} @ $${quote.regularMarketPrice}`);
+        console.log(`[SCAN] Success - ${symbol} @$${quote.regularMarketPrice} `);
         res.json(response);
 
     } catch (error) {
-        console.error(`[SCAN] Error for ${symbol}:`, error.message);
+        console.error(`[SCAN] Error for ${symbol}: `, error.message);
         res.status(500).json({
             error: 'Failed to fetch market data',
             message: error.message
@@ -289,7 +302,7 @@ router.post('/batch', async (req, res) => {
         return res.status(400).json({ error: 'Invalid or empty symbols array' });
     }
 
-    console.log(`[BATCH] Scanning ${symbols.length} symbols (${interval}): ${symbols.join(', ')}`);
+    console.log(`[BATCH] Scanning ${symbols.length} symbols(${interval}): ${symbols.join(', ')} `);
 
     const results = [];
 
@@ -365,13 +378,13 @@ router.post('/batch', async (req, res) => {
             });
 
         } catch (error) {
-            console.error(`[BATCH] Error scanning ${symbol}:`, error.message);
+            console.error(`[BATCH] Error scanning ${symbol}: `, error.message);
         }
     }
 
     results.sort((a, b) => b.score - a.score);
 
-    console.log(`[BATCH] Completed. Found ${results.length} results.`);
+    console.log(`[BATCH] Completed.Found ${results.length} results.`);
     res.json(results);
 });
 
@@ -420,7 +433,7 @@ router.get('/multi/:symbol', async (req, res) => {
         });
 
     } catch (error) {
-        console.error(`[MULTI] Error for ${symbol}:`, error.message);
+        console.error(`[MULTI] Error for ${symbol}: `, error.message);
         res.status(500).json({ error: error.message });
     }
 });
